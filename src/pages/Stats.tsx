@@ -1,8 +1,8 @@
-import { Card } from "@/components/ui/card";
+import { Card } from "../components/ui/card";
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import axios from "axios";
-import Navbar from "@/components/Navbar";
+import Navbar from "../components/Navbar";
 
 interface Url {
   _id: string;

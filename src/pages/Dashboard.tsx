@@ -1,9 +1,9 @@
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 import { useEffect, useState } from "react";
 import axios from "axios";
-import Navbar from "@/components/Navbar";
+import Navbar from "../components/Navbar";
 import { Trash2 } from "lucide-react";
 
 interface Url {
@@ -44,7 +44,7 @@ export default function Dashboard() {
       setOriginalUrl("");
       setCustomShortId("");
       setError(null);
-    } catch (err: any) {
+    } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 409) {
         setError("That short ID is already in use. Please choose another.");
       } else if (axios.isAxiosError(err) && err.response?.status === 401) {
@@ -94,7 +94,7 @@ export default function Dashboard() {
             aria-label="Custom short ID"
             maxLength={32}
           />
-          <Button onClick={handleCreate} variant="default" size="md">
+          <Button onClick={handleCreate} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded" >
             Shorten
           </Button>
         </div>
@@ -116,8 +116,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-2 text-right">
                   <div className="font-bold text-lg">{url.clicks} clicks</div>
                   <Button
-                    variant="destructive"
-                    size="icon"
+                    className="bg-red-600 hover:bg-red-700 text-white rounded p-2"
                     aria-label="Delete URL"
                     onClick={() => handleDelete(url.shortId)}
                   >
