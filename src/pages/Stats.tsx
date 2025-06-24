@@ -19,18 +19,18 @@ export default function Stats() {
     axios.get(`/api/urls/${shortId}`).then((res) => setUrl(res.data));
   }, [shortId]);
 
-  if (!url) return <div>Loading...</div>;
+  if (!url) return <div className="text-center text-muted-foreground py-12">Loading...</div>;
 
   return (
     <>
       <Navbar />
       <div className="max-w-xl mx-auto py-8">
-        <Card className="p-6">
-          <div className="font-mono text-blue-600 text-lg mb-2">
+        <Card className="p-6 rounded-md shadow-md border border-border bg-background">
+          <div className="font-mono text-primary text-lg mb-2">
             {window.location.origin + "//" + url.shortId}
           </div>
-          <div className="mb-2">Original URL: {url.originalUrl}</div>
-          <div className="font-bold">Total Clicks: {url.clicks}</div>
+          <div className="mb-2 text-muted-foreground">Original URL: {url.originalUrl}</div>
+          <div className="font-bold text-lg">Total Clicks: {url.clicks}</div>
         </Card>
       </div>
     </>

@@ -8,9 +8,9 @@ export default function Login() {
   return (
     <>
       <Navbar />
-      <div className="flex flex-col items-center justify-center min-h-screen gap-6">
-        <h1 className="text-3xl font-bold">Sign in to URL Shortener</h1>
-        <Button onClick={handleAuth0Login} className="w-64">
+      <div className="flex flex-col items-center justify-center min-h-screen gap-6 bg-background">
+        <h1 className="text-3xl font-bold font-sans text-primary">Sign in to URL Shortener</h1>
+        <Button onClick={handleAuth0Login} className="w-64" variant="default" size="lg">
           Sign in with Auth0
         </Button>
       </div>

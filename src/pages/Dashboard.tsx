@@ -1,8 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "@/components/Navbar";
+import { Trash2 } from "lucide-react";
 
 interface Url {
   _id: string;
@@ -14,6 +16,7 @@ interface Url {
 export default function Dashboard() {
   const [urls, setUrls] = useState<Url[]>([]);
   const [originalUrl, setOriginalUrl] = useState("");
+  const [customShortId, setCustomShortId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -26,7 +29,7 @@ export default function Dashboard() {
           setError("Not authenticated or unexpected response.");
         }
       })
-      .catch((err) => {
+      .catch(() => {
         setError("You must be logged in to view your URLs.");
       });
   }, []);
@@ -34,11 +37,30 @@ export default function Dashboard() {
   const handleCreate = async () => {
     if (!originalUrl) return;
     try {
-      const res = await axios.post("/api/urls", { originalUrl });
+      const payload: { originalUrl: string; customShortId?: string } = { originalUrl };
+      if (customShortId.trim()) payload.customShortId = customShortId.trim();
+      const res = await axios.post("/api/urls", payload);
       setUrls([res.data, ...urls]);
       setOriginalUrl("");
+      setCustomShortId("");
+      setError(null);
+    } catch (err: any) {
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        setError("That short ID is already in use. Please choose another.");
+      } else if (axios.isAxiosError(err) && err.response?.status === 401) {
+        setError("You must be logged in to create URLs.");
+      } else {
+        setError("An error occurred. Please try again.");
+      }
+    }
+  };
+
+  const handleDelete = async (shortId: string) => {
+    try {
+      await axios.delete(`/api/urls/${shortId}`);
+      setUrls((prev) => prev.filter((url) => url.shortId !== shortId));
     } catch {
-      setError("You must be logged in to create URLs.");
+      setError("Failed to delete URL. Please try again.");
     }
   };
 
@@ -46,34 +68,61 @@ export default function Dashboard() {
     <>
       <Navbar />
       <div className="max-w-2xl mx-auto py-8">
-        <h2 className="text-2xl font-bold mb-4">Your Shortened URLs</h2>
-        {error && <div className="text-red-600 mb-4">{error}</div>}
+        <h2 className="text-2xl font-bold mb-4 font-sans text-primary">
+          Your Shortened URLs
+        </h2>
+        {error && (
+          <div className="text-destructive mb-4 bg-destructive/10 border border-destructive rounded px-4 py-2">
+            {error}
+          </div>
+        )}
         <div className="flex gap-2 mb-6">
-          <input
-            className="border rounded px-2 py-1 flex-1"
+          <Input
+            className="flex-1 text-base"
             placeholder="Paste a long URL..."
             value={originalUrl}
-            onChange={(e) => setOriginalUrl(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOriginalUrl(e.target.value)}
+            type="url"
+            aria-label="Paste a long URL"
           />
-          <Button onClick={handleCreate}>Shorten</Button>
+          <Input
+            className="w-40 text-base"
+            placeholder="Custom short ID (optional)"
+            value={customShortId}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomShortId(e.target.value)}
+            type="text"
+            aria-label="Custom short ID"
+            maxLength={32}
+          />
+          <Button onClick={handleCreate} variant="default" size="md">
+            Shorten
+          </Button>
         </div>
         <div className="space-y-4">
           {Array.isArray(urls) &&
             urls.map((url) => (
               <Card
                 key={url._id}
-                className="flex items-center justify-between p-4"
+                className="flex items-center justify-between p-4 rounded-md shadow-md border border-border bg-background"
               >
                 <div>
-                  <div className="font-mono text-blue-600">
+                  <div className="font-mono text-primary text-base mb-1">
                     {window.location.origin + "//" + url.shortId}
                   </div>
-                  <div className="text-gray-500 text-sm">
+                  <div className="text-muted-foreground text-sm">
                     {url.originalUrl}
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="font-bold">{url.clicks} clicks</div>
+                <div className="flex items-center gap-2 text-right">
+                  <div className="font-bold text-lg">{url.clicks} clicks</div>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    aria-label="Delete URL"
+                    onClick={() => handleDelete(url.shortId)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
               </Card>
             ))}
