@@ -14,7 +14,7 @@ dotenv.config({ path: __dirname + '/../.env' });
 const app = express();
 
 // CORS must be first
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+app.use(cors({ origin: process.env.ORIGIN, credentials: true }));
 
 // Trust proxy for session/cookie support
 app.set('trust proxy', 1);

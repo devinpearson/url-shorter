@@ -27,7 +27,7 @@ export default function Stats() {
       <div className="max-w-xl mx-auto py-8">
         <Card className="p-6 rounded-md shadow-md border border-border bg-background">
           <div className="font-mono text-primary text-lg mb-2">
-            {window.location.origin + "//" + url.shortId}
+            {window.location.origin + "/" + url.shortId}
           </div>
           <div className="mb-2 text-muted-foreground">Original URL: {url.originalUrl}</div>
           <div className="font-bold text-lg">Total Clicks: {url.clicks}</div>
