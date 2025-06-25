@@ -3,7 +3,7 @@ import Navbar from "../components/Navbar";
 
 export default function Login() {
   const handleAuth0Login = () => {
-    window.location.href = "/api/auth/login";
+    window.location.href = `${process.env.ORIGIN}/api/auth/login`;
   };
   return (
     <>
