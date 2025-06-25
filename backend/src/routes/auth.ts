@@ -12,7 +12,7 @@ router.get('/login', passport.authenticate('auth0', {
 router.get('/callback',
   passport.authenticate('auth0', { failureRedirect: '/login' }),
   (req, res) => {
-    res.redirect('http://localhost:5173/'); // Redirect to frontend after login
+    res.redirect(process.env.ORIGIN); // Redirect to frontend after login
   }
 );
 
