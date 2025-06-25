@@ -1,0 +1,39 @@
+name: CI/CD
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy
+        env:
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          SESSION_SECRET: ${ secrets.SESSION_SECRET }
+          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
+          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+          AUTH0_CALLBACK_URL: ${{ secrets.AUTH0_CALLBACK_URL }}
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          username: root
+          port: 22
+          script: |
+            cd url-shorter/
+            git pull origin main
+            npm install
+            npm run build
+            pm2 reload all
