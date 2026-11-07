@@ -1,4 +1,4 @@
-import { Navigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { Link2 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { startLogin } from "../lib/api";
@@ -13,7 +13,7 @@ export default function Login() {
   if (user) return <Navigate to={returnTo} replace />;
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
+    <div className="flex flex-col items-center justify-center px-6 py-20">
       <div className="mb-12">
         <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
           <Link2 className="w-5 h-5 text-primary-foreground" aria-hidden="true" />
@@ -33,6 +33,13 @@ export default function Login() {
         >
           Continue
         </Button>
+        <p className="text-center text-xs text-gray-500">
+          By continuing you agree to the{" "}
+          <Link to="/terms" className="underline hover:text-gray-700">
+            Terms of Use
+          </Link>
+          .
+        </p>
       </div>
     </div>
   );

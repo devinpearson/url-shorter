@@ -4,7 +4,6 @@ import { Input } from "../components/ui/input";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
 import axios from "axios";
-import Navbar from "../components/Navbar";
 import { Trash2 } from "lucide-react";
 import { apiErrorMessage, createShortUrl, shortLink, shortLinkLabel, type ShortUrl } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -50,9 +49,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-left">
-      <Navbar />
-      <div className="max-w-2xl mx-auto px-4 py-8">
+    <div className="max-w-2xl mx-auto px-4 py-8">
         <h2 className="text-2xl font-bold mb-4 font-sans text-gray-900">
           Your short links
         </h2>
@@ -114,7 +111,6 @@ export default function Dashboard() {
             </Card>
           ))}
         </div>
-      </div>
     </div>
   );
 }

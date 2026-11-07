@@ -11,7 +11,6 @@ import {
   UserPlus,
   Video,
 } from "lucide-react";
-import Navbar from "../components/Navbar";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -140,10 +139,7 @@ export default function Landing() {
   const host = window.location.host;
 
   return (
-    <div className="min-h-screen bg-white text-left">
-      <Navbar />
-
-      <main>
+    <>
         {/* Hero + shorten form */}
         <section className="px-4 pt-10 pb-16 sm:pt-16">
           <div className="mx-auto max-w-2xl text-center">
@@ -227,11 +223,14 @@ export default function Landing() {
                 )}
                 {user ? "Shorten link" : "Log in and shorten"}
               </Button>
-              {user === null && (
-                <p className="text-center text-sm text-gray-500">
-                  You'll log in once, then come straight back with your link ready.
-                </p>
-              )}
+              <p className="text-center text-sm text-gray-500">
+                {user === null && "You'll log in once, then come straight back with your link ready. "}
+                By shortening a link you agree to the{" "}
+                <Link to="/terms" className="text-primary underline">
+                  Terms of Use
+                </Link>
+                .
+              </p>
             </form>
 
             {created && (
@@ -319,11 +318,6 @@ export default function Landing() {
             </ol>
           </div>
         </section>
-      </main>
-
-      <footer className="border-t border-border px-4 py-6 text-center text-xs text-gray-500">
-        Made for Toastmasters clubs. Not affiliated with or endorsed by Toastmasters International.
-      </footer>
-    </div>
+    </>
   );
 }
