@@ -1,8 +1,8 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { type Document, Schema } from "mongoose";
 
 export type ContactTopic = "question" | "feedback" | "report";
 
-export interface IContactMessage extends Document {
+interface IContactMessage extends Document {
   name: string;
   email: string;
   topic: ContactTopic;

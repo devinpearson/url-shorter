@@ -1,7 +1,6 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { type Document, Schema } from "mongoose";
 
 export interface IUser extends Document {
-  _id: string;
   /** Auth0 user id (`profile.id`). Kept as `googleId` so existing users still match. */
   googleId: string;
   displayName: string;

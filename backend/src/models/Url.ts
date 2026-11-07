@@ -1,6 +1,6 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { type Document, Schema } from "mongoose";
 
-export interface IUrl extends Document {
+interface IUrl extends Document {
   shortId: string;
   originalUrl: string;
   user: mongoose.Types.ObjectId;

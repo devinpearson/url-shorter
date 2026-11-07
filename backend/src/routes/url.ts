@@ -1,10 +1,8 @@
-import { Router, Request, Response, NextFunction } from "express";
-import { randomInt } from "crypto";
+import { randomInt } from "node:crypto";
+import { type NextFunction, type Request, type Response, Router } from "express";
 import rateLimit from "express-rate-limit";
-import Url from "../models/Url";
 import { ensureAuth } from "../middleware/auth";
-
-const router = Router();
+import Url from "../models/Url";
 
 // Uses Node's crypto directly: nanoid v5 is ESM-only and this backend compiles to CommonJS.
 const ALPHANUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -29,6 +27,7 @@ const RESERVED_SHORT_IDS = new Set([
   "favicon.ico",
   "favicon.svg",
   "robots.txt",
+  "sitemap.xml",
   "index.html",
 ]);
 
@@ -52,92 +51,103 @@ function parseHttpUrl(value: unknown): string | null {
   }
 }
 
-const createLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  limit: 30,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
-  message: { message: "Too many links created. Please wait a minute and try again." },
-});
+/** The logged-in user's id. Every route below runs after ensureAuth, so req.user is set. */
+function userId(req: Request) {
+  if (!req.user) throw new Error("ensureAuth must run before this route");
+  return req.user._id;
+}
 
-router.use(ensureAuth);
+/** Builds the short link router. Each call gets its own rate limiter, so tests can start fresh. */
+export function urlRouter() {
+  const router = Router();
 
-// Create a short URL
-router.post(
-  "/",
-  createLimiter,
-  asyncHandler(async (req, res) => {
-    const originalUrl = parseHttpUrl(req.body?.originalUrl);
-    if (!originalUrl) {
-      res.status(400).json({ message: "Please enter a valid http:// or https:// URL." });
-      return;
-    }
+  const createLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 30,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: { message: "Too many links created. Please wait a minute and try again." },
+  });
 
-    const custom = req.body?.customShortId;
-    let shortId: string;
-    if (typeof custom === "string" && custom.trim()) {
-      shortId = custom.trim();
-      if (!SHORT_ID_PATTERN.test(shortId)) {
-        res.status(400).json({
-          message: 'Short IDs must be 3–32 characters: letters, numbers, "_" or "-".',
-        });
+  router.use(ensureAuth);
+
+  // Create a short URL
+  router.post(
+    "/",
+    createLimiter,
+    asyncHandler(async (req, res) => {
+      const originalUrl = parseHttpUrl(req.body?.originalUrl);
+      if (!originalUrl) {
+        res.status(400).json({ message: "Please enter a valid http:// or https:// URL." });
         return;
       }
-      if (RESERVED_SHORT_IDS.has(shortId.toLowerCase())) {
-        res.status(400).json({ message: "That short ID is reserved. Please choose another." });
+
+      const custom = req.body?.customShortId;
+      let shortId: string;
+      if (typeof custom === "string" && custom.trim()) {
+        shortId = custom.trim();
+        if (!SHORT_ID_PATTERN.test(shortId)) {
+          res.status(400).json({
+            message: 'Short IDs must be 3–32 characters: letters, numbers, "_" or "-".',
+          });
+          return;
+        }
+        if (RESERVED_SHORT_IDS.has(shortId.toLowerCase())) {
+          res.status(400).json({ message: "That short ID is reserved. Please choose another." });
+          return;
+        }
+      } else {
+        shortId = generateShortId();
+      }
+
+      try {
+        const url = await Url.create({ shortId, originalUrl, user: userId(req) });
+        res.status(201).json(url);
+      } catch (err) {
+        // The unique index on shortId is the source of truth, so concurrent creates are safe.
+        if (isDuplicateKeyError(err)) {
+          res.status(409).json({ message: "Short ID already in use." });
+          return;
+        }
+        throw err;
+      }
+    }),
+  );
+
+  // Get all URLs for the logged-in user, newest first
+  router.get(
+    "/",
+    asyncHandler(async (req, res) => {
+      const urls = await Url.find({ user: userId(req) }).sort({ createdAt: -1 });
+      res.json(urls);
+    }),
+  );
+
+  // Get stats for a short URL
+  router.get(
+    "/:shortId",
+    asyncHandler(async (req, res) => {
+      const url = await Url.findOne({ shortId: req.params.shortId, user: userId(req) });
+      if (!url) {
+        res.status(404).json({ message: "Not found" });
         return;
       }
-    } else {
-      shortId = generateShortId();
-    }
+      res.json(url);
+    }),
+  );
 
-    try {
-      const url = await Url.create({ shortId, originalUrl, user: req.user!._id });
-      res.status(201).json(url);
-    } catch (err) {
-      // The unique index on shortId is the source of truth, so concurrent creates are safe.
-      if (isDuplicateKeyError(err)) {
-        res.status(409).json({ message: "Short ID already in use." });
+  // Delete a short URL
+  router.delete(
+    "/:shortId",
+    asyncHandler(async (req, res) => {
+      const result = await Url.deleteOne({ shortId: req.params.shortId, user: userId(req) });
+      if (result.deletedCount === 0) {
+        res.status(404).json({ message: "Not found" });
         return;
       }
-      throw err;
-    }
-  }),
-);
+      res.json({ message: "Deleted" });
+    }),
+  );
 
-// Get all URLs for the logged-in user, newest first
-router.get(
-  "/",
-  asyncHandler(async (req, res) => {
-    const urls = await Url.find({ user: req.user!._id }).sort({ createdAt: -1 });
-    res.json(urls);
-  }),
-);
-
-// Get stats for a short URL
-router.get(
-  "/:shortId",
-  asyncHandler(async (req, res) => {
-    const url = await Url.findOne({ shortId: req.params.shortId, user: req.user!._id });
-    if (!url) {
-      res.status(404).json({ message: "Not found" });
-      return;
-    }
-    res.json(url);
-  }),
-);
-
-// Delete a short URL
-router.delete(
-  "/:shortId",
-  asyncHandler(async (req, res) => {
-    const result = await Url.deleteOne({ shortId: req.params.shortId, user: req.user!._id });
-    if (result.deletedCount === 0) {
-      res.status(404).json({ message: "Not found" });
-      return;
-    }
-    res.json({ message: "Deleted" });
-  }),
-);
-
-export default router;
+  return router;
+}

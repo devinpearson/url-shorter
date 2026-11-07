@@ -1,6 +1,6 @@
 import passport from "passport";
 import { Strategy as Auth0Strategy } from "passport-auth0";
-import User, { IUser } from "./models/User";
+import User, { type IUser } from "./models/User";
 
 passport.serializeUser((user, done) => {
   done(null, String(user._id));
@@ -23,7 +23,7 @@ passport.use(
       clientSecret: process.env.AUTH0_CLIENT_SECRET || "",
       callbackURL: process.env.AUTH0_CALLBACK_URL || "",
     },
-    async (accessToken, refreshToken, extraParams, profile, done) => {
+    async (_accessToken, _refreshToken, _extraParams, profile, done) => {
       try {
         let user = await User.findOne({ googleId: profile.id });
         if (!user) {

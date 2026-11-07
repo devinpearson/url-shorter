@@ -1,8 +1,6 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import ContactMessage, { ContactTopic } from "../models/ContactMessage";
-
-const router = Router();
+import ContactMessage, { type ContactTopic } from "../models/ContactMessage";
 
 const TOPICS: Record<ContactTopic, string> = {
   question: "Question",
@@ -11,21 +9,13 @@ const TOPICS: Record<ContactTopic, string> = {
 };
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const contactLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  limit: 5,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
-  message: { message: "Too many messages. Please try again in an hour." },
-});
-
 const text = (value: unknown, max: number) =>
   typeof value === "string" ? value.trim().slice(0, max) : "";
 
 const escapeHtml = (value: string) =>
   value.replace(
     /[&<>"']/g,
-    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[c]!,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[c] ?? c,
   );
 
 /** Emails the message through Resend's HTTP API. Returns false when email isn't configured. */
@@ -63,60 +53,73 @@ ${msg.link ? `<p><strong>Link:</strong> ${escapeHtml(msg.link)}</p>` : ""}
   return true;
 }
 
-router.post("/", contactLimiter, async (req, res, next) => {
-  try {
-    // Honeypot: bots fill every field. Pretend it worked so they don't retry.
-    if (text(req.body?.website, 200)) {
-      res.status(202).json({ message: "Thanks, your message has been sent." });
-      return;
-    }
+/** Builds the contact router. Each call gets its own rate limiter, so tests can start fresh. */
+export function contactRouter() {
+  const router = Router();
 
-    const name = text(req.body?.name, 100);
-    const email = text(req.body?.email, 200);
-    const message = text(req.body?.message, 5000);
-    const topic = req.body?.topic as ContactTopic;
-    const link = topic === "report" ? text(req.body?.link, 300) || undefined : undefined;
+  const contactLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: 5,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: { message: "Too many messages. Please try again in an hour." },
+  });
 
-    if (!name || !email || !message) {
-      res.status(400).json({ message: "Please fill in your name, email and message." });
-      return;
-    }
-    if (!EMAIL_PATTERN.test(email)) {
-      res.status(400).json({ message: "Please enter a valid email address." });
-      return;
-    }
-    if (!(topic in TOPICS)) {
-      res.status(400).json({ message: "Please choose what your message is about." });
-      return;
-    }
-
-    // Save first so nothing is lost if email delivery fails.
-    const saved = await ContactMessage.create({
-      name,
-      email,
-      topic,
-      link,
-      message,
-      user: req.user?._id,
-    });
-
+  router.post("/", contactLimiter, async (req, res, next) => {
     try {
-      if (await sendEmail({ name, email, topic, link, message })) {
-        saved.emailed = true;
-        await saved.save();
-      } else {
-        console.warn(
-          `Contact message ${saved.id} saved; RESEND_API_KEY not set, so no email was sent.`,
-        );
+      // Honeypot: bots fill every field. Pretend it worked so they don't retry.
+      if (text(req.body?.website, 200)) {
+        res.status(202).json({ message: "Thanks, your message has been sent." });
+        return;
       }
+
+      const name = text(req.body?.name, 100);
+      const email = text(req.body?.email, 200);
+      const message = text(req.body?.message, 5000);
+      const topic = req.body?.topic as ContactTopic;
+      const link = topic === "report" ? text(req.body?.link, 300) || undefined : undefined;
+
+      if (!name || !email || !message) {
+        res.status(400).json({ message: "Please fill in your name, email and message." });
+        return;
+      }
+      if (!EMAIL_PATTERN.test(email)) {
+        res.status(400).json({ message: "Please enter a valid email address." });
+        return;
+      }
+      if (!(topic in TOPICS)) {
+        res.status(400).json({ message: "Please choose what your message is about." });
+        return;
+      }
+
+      // Save first so nothing is lost if email delivery fails.
+      const saved = await ContactMessage.create({
+        name,
+        email,
+        topic,
+        link,
+        message,
+        user: req.user?._id,
+      });
+
+      try {
+        if (await sendEmail({ name, email, topic, link, message })) {
+          saved.emailed = true;
+          await saved.save();
+        } else {
+          console.warn(
+            `Contact message ${saved.id} saved; RESEND_API_KEY not set, so no email was sent.`,
+          );
+        }
+      } catch (err) {
+        console.error(`Contact message ${saved.id} saved but the email failed:`, err);
+      }
+
+      res.status(201).json({ message: "Thanks, your message has been sent." });
     } catch (err) {
-      console.error(`Contact message ${saved.id} saved but the email failed:`, err);
+      next(err);
     }
+  });
 
-    res.status(201).json({ message: "Thanks, your message has been sent." });
-  } catch (err) {
-    next(err);
-  }
-});
-
-export default router;
+  return router;
+}
