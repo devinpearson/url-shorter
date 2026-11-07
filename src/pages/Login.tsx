@@ -1,5 +1,5 @@
-import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { Link2 } from "lucide-react";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { startLogin } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -8,20 +8,20 @@ export default function Login() {
   const { user } = useAuth();
   const [params] = useSearchParams();
   const next = params.get("next");
-  const returnTo = next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+  const returnTo = next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
 
   if (user) return <Navigate to={returnTo} replace />;
 
   return (
     <div className="flex flex-col items-center justify-center px-6 py-20">
       <div className="mb-12">
-        <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-          <Link2 className="w-5 h-5 text-primary-foreground" aria-hidden="true" />
+        <div className="bg-primary flex size-10 items-center justify-center rounded-full">
+          <Link2 className="text-primary-foreground size-5" aria-hidden="true" />
         </div>
       </div>
 
       <div className="w-full max-w-sm space-y-6">
-        <div className="text-center space-y-2">
+        <div className="space-y-2 text-center">
           <h1 className="text-2xl font-semibold text-gray-900">Log in to Club Links</h1>
           <p className="text-sm text-gray-600">
             Create short links for your club and see how often they're clicked.
@@ -30,7 +30,7 @@ export default function Login() {
 
         <Button
           onClick={() => startLogin(returnTo)}
-          className="w-full h-12 font-medium"
+          className="h-12 w-full font-medium"
           disabled={user === undefined}
         >
           Continue

@@ -10,7 +10,7 @@ const LINKS = [
 
 export default function Footer() {
   return (
-    <footer className="mt-auto border-t border-border bg-muted">
+    <footer className="border-border bg-muted mt-auto border-t">
       <div className="mx-auto max-w-5xl px-4 py-8">
         <nav aria-label="Footer" className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
           {LINKS.map(({ to, label }) => (

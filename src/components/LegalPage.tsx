@@ -36,7 +36,7 @@ export function LegalSection({
       <h2 id={id ? `${id}-heading` : undefined} className="text-xl font-semibold text-gray-900">
         {title}
       </h2>
-      <div className="mt-2 space-y-3 leading-relaxed text-gray-700 [&_a]:text-primary [&_a]:underline [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-6">
+      <div className="[&_a]:text-primary mt-2 space-y-3 leading-relaxed text-gray-700 [&_a]:underline [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-6">
         {children}
       </div>
     </section>

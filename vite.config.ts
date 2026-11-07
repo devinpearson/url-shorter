@@ -1,21 +1,17 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import alias from "@rollup/plugin-alias";
-import { fileURLToPath, URL } from "url";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+
+// The backend the dev and preview servers forward /api to. Tests point this at their own server.
+const apiTarget = process.env.API_PROXY_TARGET ?? "http://localhost:5001";
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),
-    alias({
-      entries: [{ find: "@", replacement: fileURLToPath(new URL("./src", import.meta.url)) }],
-    }),
-  ],
+  plugins: [react(), tailwindcss()],
   server: {
-    proxy: {
-      "^/api/.*": "http://localhost:5001",
-    },
+    proxy: { "/api": apiTarget },
+  },
+  preview: {
+    proxy: { "/api": apiTarget },
   },
 });

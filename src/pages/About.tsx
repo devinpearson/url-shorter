@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
 import { Linkedin } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Card } from "../components/ui/card";
 
 export default function About() {
@@ -31,8 +31,8 @@ export default function About() {
             </p>
             <p className="mb-4 leading-relaxed text-gray-700">
               Club Links turns those into short names your members and guests can remember, like{" "}
-              <span className="font-mono text-primary">/club-roles</span> or{" "}
-              <span className="font-mono text-primary">/visit-us</span>, and shows how many people
+              <span className="text-primary font-mono">/club-roles</span> or{" "}
+              <span className="text-primary font-mono">/visit-us</span>, and shows how many people
               opened each one, so club officers can see which announcements are working. It&apos;s
               free for clubs to use.
             </p>
@@ -52,8 +52,8 @@ export default function About() {
               aria-label="Connect with Devin Pearson on LinkedIn"
             >
               <span className="flex items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-600 text-white">
-                  <Linkedin className="h-5 w-5" aria-hidden="true" />
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-sky-600 text-white">
+                  <Linkedin className="size-5" aria-hidden="true" />
                 </span>
                 <span>
                   <span className="block text-sm font-semibold text-sky-950">
@@ -67,7 +67,7 @@ export default function About() {
               <span className="text-sm font-semibold text-sky-700">Connect</span>
             </a>
 
-            <div className="mt-6 border-t border-border pt-6 text-sm text-gray-600">
+            <div className="border-border mt-6 border-t pt-6 text-sm text-gray-600">
               <p className="mb-2">
                 <span className="font-semibold text-gray-900">Toastmaster since:</span> 2019
               </p>
