@@ -24,8 +24,8 @@ export interface CurrentUser {
 
 export async function fetchCurrentUser(): Promise<CurrentUser | null> {
   try {
-    const res = await axios.get<CurrentUser>("/api/auth/me");
-    return res.data;
+    const res = await axios.get<CurrentUser | null>("/api/auth/me");
+    return res.data || null;
   } catch (err) {
     if (axios.isAxiosError(err) && err.response?.status === 401) return null;
     throw err;
@@ -90,7 +90,7 @@ export function takeReturnTo(): string | null {
     const value = storage()?.getItem(RETURN_TO_KEY) ?? null;
     storage()?.removeItem(RETURN_TO_KEY);
     // Only allow in-app paths, never another site.
-    return value && value.startsWith("/") && !value.startsWith("//") ? value : null;
+    return value?.startsWith("/") && !value.startsWith("//") ? value : null;
   } catch {
     return null;
   }

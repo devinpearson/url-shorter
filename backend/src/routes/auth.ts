@@ -17,7 +17,7 @@ router.get(
 router.get(
   "/callback",
   passport.authenticate("auth0", { failureRedirect: frontendUrl("/login") }),
-  (req, res) => {
+  (_req, res) => {
     res.redirect(frontendUrl("/")); // Redirect to frontend after login
   },
 );
@@ -33,10 +33,11 @@ router.get("/logout", (req, res, next) => {
   });
 });
 
-// Get current user
+// Get current user. Logged out is a normal state, not an error: answer 200 with null
+// so browsers don't log a failed request on every page load.
 router.get("/me", (req, res) => {
   if (!req.user) {
-    res.status(401).json({ message: "Unauthorized" });
+    res.json(null);
     return;
   }
   const { _id, displayName, email } = req.user;
