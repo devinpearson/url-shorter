@@ -1,6 +1,6 @@
 # Club Links (toast.li)
 
-A link shortener for Toastmasters clubs, live at **https://toast.li**. Club officers log in and turn long
+A link shortener for Toastmasters clubs, live at **<https://toast.li>**. Club officers log in and turn long
 meeting sign-up sheets, online meeting links and guest forms into short names like `toast.li/club-roles`,
 then see how many people clicked.
 
@@ -19,7 +19,32 @@ then see how many people clicked.
 
 Short links don't redirect through the Vite dev server; open `http://localhost:5001/<name>` to test one.
 
-Before pushing, run `npm run lint`, `npm run typecheck` and `npm run build`. CI runs the same checks.
+## Quality checks
+
+| Command                               | What it does                                                                     |
+| ------------------------------------- | -------------------------------------------------------------------------------- |
+| `npm run check` / `npm run check:fix` | Biome: formatting, linting (including React and Tailwind rules) and import order |
+| `npm run typecheck`                   | TypeScript for the app, backend, configs and tests                               |
+| `npm run knip`                        | Unused files, exports and dependencies                                           |
+| `npm run lint:md`                     | Markdown style                                                                   |
+| `npm test` / `npm run test:coverage`  | Vitest: React components (jsdom) and the API (supertest on an in-memory MongoDB) |
+| `npm run test:e2e`                    | Playwright on desktop Chrome and a Pixel 7, against the real backend             |
+| `npm run verify:lighthouse`           | Lighthouse CI on the built app; score floors are in `lighthouserc.json`          |
+| `npm run verify`                      | Everything above except Lighthouse; run it before opening a pull request         |
+
+The end-to-end tests and Lighthouse run the backend from `tests/e2e/api-server.ts`: the real Express app on an
+in-memory MongoDB, with a test-only `POST /api/test/login` instead of Auth0. That route is only added by
+`createApp({ enableTestLogin: true })`, which refuses to run when `NODE_ENV=production`.
+
+The first test run downloads a MongoDB binary, and `npx playwright install chromium` is needed once for the
+end-to-end tests.
+
+Git hooks (husky) run Biome on staged files and the type check before each commit, and commitlint checks
+that commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`,
+`chore:` …).
+
+CI runs the checks, unit, API and end-to-end tests on every pull request. Deploys wait for them. Lighthouse
+runs when the workflow is started by hand (Actions → CI/CD → Run workflow).
 
 ## Production (toast.li)
 
@@ -31,12 +56,12 @@ reloads pm2 with `NODE_ENV=production`.
 
 GitHub repository secrets (passed to the server on each deploy, and they override `backend/.env`):
 
-| Secret | Production value |
-| --- | --- |
-| `ORIGIN` | `https://toast.li` |
-| `AUTH0_CALLBACK_URL` | `https://toast.li/api/auth/callback` |
-| `MONGO_URI`, `SESSION_SECRET` | the production database and a long random secret |
-| `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_DOMAIN` | from the Auth0 application |
+| Secret                                                   | Production value                                 |
+| -------------------------------------------------------- | ------------------------------------------------ |
+| `ORIGIN`                                                 | `https://toast.li`                               |
+| `AUTH0_CALLBACK_URL`                                     | `https://toast.li/api/auth/callback`             |
+| `MONGO_URI`, `SESSION_SECRET`                            | the production database and a long random secret |
+| `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_DOMAIN` | from the Auth0 application                       |
 
 Every one of these must be set: an empty secret replaces the value in the server's `.env`.
 The optional Resend settings (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `CONTACT_RECIPIENT_EMAIL`) go in the

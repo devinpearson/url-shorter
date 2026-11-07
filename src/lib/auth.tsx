@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { fetchCurrentUser, type CurrentUser } from "./api";
+import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
+import { type CurrentUser, fetchCurrentUser } from "./api";
 
 interface AuthState {
   /** `undefined` while the first check is in flight. */
@@ -24,7 +24,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={{ user }}>{children}</AuthContext.Provider>;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components -- hook lives beside its provider
 export function useAuth() {
   return useContext(AuthContext);
 }

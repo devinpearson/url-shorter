@@ -10,7 +10,7 @@ const LINKS = [
 
 export default function Footer() {
   return (
-    <footer className="mt-auto border-t border-border bg-muted">
+    <footer className="border-border bg-muted mt-auto border-t">
       <div className="mx-auto max-w-5xl px-4 py-8">
         <nav aria-label="Footer" className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
           {LINKS.map(({ to, label }) => (
@@ -21,13 +21,13 @@ export default function Footer() {
         </nav>
 
         <p className="mx-auto mt-6 max-w-3xl text-center text-xs leading-relaxed text-gray-500">
-          The names &quot;Toastmasters International&quot;, &quot;Toastmasters&quot; and the Toastmasters
-          International emblem are trademarks protected in the United States, Canada and other countries where
-          Toastmasters clubs exist.
+          The names &quot;Toastmasters International&quot;, &quot;Toastmasters&quot; and the
+          Toastmasters International emblem are trademarks protected in the United States, Canada
+          and other countries where Toastmasters clubs exist.
         </p>
         <p className="mt-3 text-center text-xs text-gray-500">
-          © {new Date().getFullYear()} Devin Pearson. An independent, unofficial service for clubs, not
-          affiliated with or endorsed by Toastmasters International.
+          © {new Date().getFullYear()} Devin Pearson. An independent, unofficial service for clubs,
+          not affiliated with or endorsed by Toastmasters International.
         </p>
       </div>
     </footer>

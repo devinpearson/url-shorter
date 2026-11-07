@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
 import { Linkedin } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Card } from "../components/ui/card";
 
 export default function About() {
@@ -25,15 +25,16 @@ export default function About() {
           <div className="lg:col-span-2">
             <h2 className="mb-4 text-2xl font-semibold text-gray-900">Why I built Club Links</h2>
             <p className="mb-4 leading-relaxed text-gray-700">
-              Every club meeting runs on links: the role sign-up sheet, the online meeting room, the guest form,
-              the agenda. They&apos;re usually long, hard to read out at the end of a meeting and easy to mistype
-              from a slide or a flyer.
+              Every club meeting runs on links: the role sign-up sheet, the online meeting room, the
+              guest form, the agenda. They&apos;re usually long, hard to read out at the end of a
+              meeting and easy to mistype from a slide or a flyer.
             </p>
             <p className="mb-4 leading-relaxed text-gray-700">
               Club Links turns those into short names your members and guests can remember, like{" "}
-              <span className="font-mono text-primary">/club-roles</span> or{" "}
-              <span className="font-mono text-primary">/visit-us</span>, and shows how many people opened each one,
-              so club officers can see which announcements are working. It&apos;s free for clubs to use.
+              <span className="text-primary font-mono">/club-roles</span> or{" "}
+              <span className="text-primary font-mono">/visit-us</span>, and shows how many people
+              opened each one, so club officers can see which announcements are working. It&apos;s
+              free for clubs to use.
             </p>
             <p className="mb-6 leading-relaxed text-gray-700">
               Have an idea or found a problem? I&apos;d love to hear it through the{" "}
@@ -51,11 +52,13 @@ export default function About() {
               aria-label="Connect with Devin Pearson on LinkedIn"
             >
               <span className="flex items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-600 text-white">
-                  <Linkedin className="h-5 w-5" aria-hidden="true" />
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-sky-600 text-white">
+                  <Linkedin className="size-5" aria-hidden="true" />
                 </span>
                 <span>
-                  <span className="block text-sm font-semibold text-sky-950">Let&apos;s connect on LinkedIn</span>
+                  <span className="block text-sm font-semibold text-sky-950">
+                    Let&apos;s connect on LinkedIn
+                  </span>
                   <span className="block text-sm text-sky-800">
                     For updates, Toastmasters ideas and collaboration.
                   </span>
@@ -64,13 +67,13 @@ export default function About() {
               <span className="text-sm font-semibold text-sky-700">Connect</span>
             </a>
 
-            <div className="mt-6 border-t border-border pt-6 text-sm text-gray-600">
+            <div className="border-border mt-6 border-t pt-6 text-sm text-gray-600">
               <p className="mb-2">
                 <span className="font-semibold text-gray-900">Toastmaster since:</span> 2019
               </p>
               <p>
-                <span className="font-semibold text-gray-900">Current role:</span> District 74 Program Quality
-                Director (2026–2027)
+                <span className="font-semibold text-gray-900">Current role:</span> District 74
+                Program Quality Director (2026–2027)
               </p>
             </div>
           </div>

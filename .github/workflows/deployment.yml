@@ -4,10 +4,22 @@ on:
     branches:
       - main
   pull_request:
+  # Run by hand (Actions → CI/CD → Run workflow) to include the Lighthouse audit.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer commit on the same branch or PR supersedes an in-progress run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
+    name: Lint, type check, unit and API tests, build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -18,20 +30,119 @@ jobs:
           node-version: 22
           cache: npm
 
+      # The API tests run on an in-memory MongoDB; keep its binary between runs.
+      - name: Cache MongoDB binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: ${{ runner.os }}-mongodb-binaries-${{ hashFiles('package-lock.json') }}
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
+      - name: Biome (format, lint, imports)
+        run: npx biome ci .
 
       - name: Type check
         run: npm run typecheck
 
+      - name: Unused files, exports and dependencies (knip)
+        run: npm run knip
+
+      - name: Markdown lint
+        run: npm run lint:md
+
+      - name: Unit and API tests with coverage
+        run: npm run test:coverage
+
       - name: Build
         run: npm run build && npm run build:backend
 
+  e2e:
+    name: Playwright end-to-end tests
+    # Pinned: Playwright can't install Chromium on ubuntu-latest (26.04) yet.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Cache MongoDB binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: ${{ runner.os }}-mongodb-binaries-${{ hashFiles('package-lock.json') }}
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: playwright-report/
+          retention-days: 14
+
+  lighthouse:
+    name: Lighthouse score floors
+    # About 2 minutes of Chrome runs, so only when started by hand.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Cache MongoDB binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: ${{ runner.os }}-mongodb-binaries-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Builds the app and audits it against the e2e backend (floors in lighthouserc.json).
+      - name: Run Lighthouse CI
+        run: npm run verify:lighthouse
+
+      # upload-artifact skips dot-directories unless told otherwise.
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-${{ github.sha }}
+          path: .lighthouseci/
+          include-hidden-files: true
+          retention-days: 14
+
   deploy:
-    needs: check
+    needs: [check, e2e]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:

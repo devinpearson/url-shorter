@@ -1,10 +1,9 @@
-import { IUser } from '../../models/User';
+import type { IUser } from "../../models/User";
 
 declare global {
   namespace Express {
-    interface User extends IUser {
-      _id: string;
-    }
+    // Declaration merging needs an interface: req.user is a User document.
+    interface User extends IUser {}
     interface Request {
       user?: User;
     }

@@ -1,7 +1,7 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { AlertCircle, CheckCircle2, Loader2, Mail, Send } from "lucide-react";
+import { type FormEvent, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -19,7 +19,9 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function Contact() {
   const { user } = useAuth();
   const [params] = useSearchParams();
-  const initialTopic = TOPICS.some((t) => t.value === params.get("topic")) ? (params.get("topic") as Topic) : "question";
+  const initialTopic = TOPICS.some((t) => t.value === params.get("topic"))
+    ? (params.get("topic") as Topic)
+    : "question";
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -79,13 +81,18 @@ export default function Contact() {
     <div className="mx-auto w-full max-w-3xl px-4 py-10">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Contact</h1>
-        <p className="mt-2 text-gray-600">Questions, ideas, or a link that shouldn&apos;t be here? Let us know.</p>
+        <p className="mt-2 text-gray-600">
+          Questions, ideas, or a link that shouldn&apos;t be here? Let us know.
+        </p>
       </div>
 
       <Card className="p-6 shadow-md md:p-8">
         {status === "sent" ? (
-          <div role="status" className="flex items-start gap-3 rounded-md border border-green-200 bg-green-50 p-4">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-600" aria-hidden="true" />
+          <div
+            role="status"
+            className="flex items-start gap-3 rounded-md border border-green-200 bg-green-50 p-4"
+          >
+            <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-green-600" aria-hidden="true" />
             <div className="text-sm text-green-800">
               <p className="font-medium">Thank you, your message has been sent.</p>
               <p className="mt-1">We&apos;ll reply to {email} as soon as we can.</p>
@@ -120,7 +127,10 @@ export default function Contact() {
                   Email <span className="text-destructive">*</span>
                 </label>
                 <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-gray-400" aria-hidden="true" />
+                  <Mail
+                    className="pointer-events-none absolute top-3 left-3 size-5 text-gray-400"
+                    aria-hidden="true"
+                  />
                   <Input
                     id="email"
                     type="email"
@@ -147,7 +157,7 @@ export default function Contact() {
                       checked={topic === t.value}
                       onChange={() => setTopic(t.value)}
                       disabled={sending}
-                      className="h-4 w-4 accent-[hsl(239_84%_67%)]"
+                      className="accent-primary size-4"
                     />
                     {t.label}
                   </label>
@@ -186,12 +196,12 @@ export default function Contact() {
                 placeholder={
                   topic === "report" ? "What's wrong with this link?" : "How can we help?"
                 }
-                className="block w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-base text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
+                className="border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-ring block w-full resize-y rounded-md border px-3 py-2 text-base focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50"
               />
             </div>
 
             {/* Honeypot for bots: hidden from people and screen readers. */}
-            <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
+            <div aria-hidden="true" className="absolute -left-[9999px] size-px overflow-hidden">
               <label htmlFor="website">Website</label>
               <input
                 id="website"
@@ -203,17 +213,23 @@ export default function Contact() {
             </div>
 
             {status === "error" && error && (
-              <div role="alert" className="flex items-start gap-3 rounded-md border border-destructive bg-destructive/10 p-4">
-                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" aria-hidden="true" />
-                <p className="text-sm text-destructive">{error}</p>
+              <div
+                role="alert"
+                className="border-destructive bg-destructive/10 flex items-start gap-3 rounded-md border p-4"
+              >
+                <AlertCircle
+                  className="text-destructive mt-0.5 size-5 shrink-0"
+                  aria-hidden="true"
+                />
+                <p className="text-destructive text-sm">{error}</p>
               </div>
             )}
 
             <Button type="submit" size="lg" className="w-full gap-2" disabled={sending}>
               {sending ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
               ) : (
-                <Send className="h-4 w-4" aria-hidden="true" />
+                <Send className="size-4" aria-hidden="true" />
               )}
               {sending ? "Sending…" : "Send message"}
             </Button>

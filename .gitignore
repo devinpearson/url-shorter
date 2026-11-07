@@ -23,3 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 backend/.env
+
+# Test and audit output
+coverage
+playwright-report
+test-results
+blob-report
+.lighthouseci

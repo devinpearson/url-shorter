@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { Link, NavLink, useLocation } from "react-router-dom";
 import { Link2, Menu, X } from "lucide-react";
+import { useState } from "react";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { API_BASE, startLogin } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { cn } from "../lib/utils";
@@ -17,14 +17,16 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export default function Navbar() {
   const { user } = useAuth();
-  const [open, setOpen] = useState(false);
-  const location = useLocation();
-
-  // Close the mobile menu after navigating.
-  useEffect(() => setOpen(false), [location.pathname]);
+  const { pathname } = useLocation();
+  // The mobile menu stays open only on the page it was opened on, so navigating closes it.
+  const [openOn, setOpenOn] = useState<string | null>(null);
+  const open = openOn === pathname;
 
   const account = user ? (
-    <a href={`${API_BASE}/api/auth/logout`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+    <a
+      href={`${API_BASE}/api/auth/logout`}
+      className={buttonVariants({ variant: "outline", size: "sm" })}
+    >
       Log out
     </a>
   ) : user === null ? (
@@ -34,11 +36,11 @@ export default function Navbar() {
   ) : null;
 
   return (
-    <nav className="w-full border-b border-border bg-white" aria-label="Main">
+    <nav className="border-border w-full border-b bg-white" aria-label="Main">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
         <Link to="/" className="flex items-center gap-2 text-lg font-bold text-gray-900">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
-            <Link2 className="h-4 w-4 text-primary-foreground" aria-hidden="true" />
+          <span className="bg-primary flex size-8 items-center justify-center rounded-full">
+            <Link2 className="text-primary-foreground size-4" aria-hidden="true" />
           </span>
           Club Links
         </Link>
@@ -59,17 +61,21 @@ export default function Navbar() {
           aria-label={open ? "Close menu" : "Open menu"}
           aria-expanded={open}
           aria-controls="mobile-menu"
-          onClick={() => setOpen((o) => !o)}
+          onClick={() => setOpenOn(open ? null : pathname)}
         >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          {open ? <X className="size-5" /> : <Menu className="size-5" />}
         </Button>
       </div>
 
       {open && (
-        <div id="mobile-menu" className="border-t border-border px-4 py-3 sm:hidden">
+        <div id="mobile-menu" className="border-border border-t px-4 py-3 sm:hidden">
           <div className="flex flex-col gap-1">
             {NAV_LINKS.map(({ to, label }) => (
-              <NavLink key={to} to={to} className={({ isActive }) => cn(navLinkClass({ isActive }), "justify-start")}>
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) => cn(navLinkClass({ isActive }), "justify-start")}
+              >
                 {label}
               </NavLink>
             ))}

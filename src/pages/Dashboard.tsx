@@ -1,11 +1,17 @@
-import { Card } from "../components/ui/card";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { useEffect, useState, type FormEvent } from "react";
-import { Link, Navigate } from "react-router-dom";
 import axios from "axios";
 import { Trash2 } from "lucide-react";
-import { apiErrorMessage, createShortUrl, shortLink, shortLinkLabel, type ShortUrl } from "../lib/api";
+import { type FormEvent, useEffect, useState } from "react";
+import { Link, Navigate } from "react-router-dom";
+import { Button } from "../components/ui/button";
+import { Card } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import {
+  apiErrorMessage,
+  createShortUrl,
+  type ShortUrl,
+  shortLink,
+  shortLinkLabel,
+} from "../lib/api";
 import { useAuth } from "../lib/auth";
 
 export default function Dashboard() {
@@ -49,68 +55,72 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-        <h2 className="text-2xl font-bold mb-4 font-sans text-gray-900">
-          Your short links
-        </h2>
-        {error && (
-          <div role="alert" className="text-destructive mb-4 bg-destructive/10 border border-destructive rounded px-4 py-2">
-            {error}
-          </div>
-        )}
-        <form onSubmit={handleCreate} className="flex flex-col gap-2 mb-6 sm:flex-row">
-          <Input
-            className="flex-1 text-base"
-            placeholder="Paste a long URL..."
-            value={originalUrl}
-            onChange={(e) => setOriginalUrl(e.target.value)}
-            type="url"
-            aria-label="Paste a long URL"
-          />
-          <Input
-            className="text-base sm:w-44"
-            placeholder="Custom name (optional)"
-            value={customShortId}
-            onChange={(e) => setCustomShortId(e.target.value)}
-            type="text"
-            aria-label="Custom name"
-            maxLength={32}
-          />
-          <Button type="submit">Shorten</Button>
-        </form>
-        {user && urls.length === 0 && !error && (
-          <p className="text-muted-foreground">No links yet. Paste one above to get started.</p>
-        )}
-        <div className="space-y-4">
-          {urls.map((url) => (
-            <Card key={url._id} className="flex items-center justify-between gap-4 p-4">
-              <div className="min-w-0">
-                <a
-                  href={shortLink(url.shortId)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block truncate font-mono text-primary text-base mb-1 hover:underline"
-                >
-                  {shortLinkLabel(url.shortId)}
-                </a>
-                <div className="truncate text-muted-foreground text-sm">{url.originalUrl}</div>
-              </div>
-              <div className="flex shrink-0 items-center gap-2 text-right">
-                <Link to={`/stats/${url.shortId}`} className="font-bold text-lg text-gray-900 hover:underline">
-                  {url.clicks} clicks
-                </Link>
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  aria-label={`Delete ${url.shortId}`}
-                  onClick={() => handleDelete(url.shortId)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </Card>
-          ))}
+    <div className="mx-auto max-w-2xl px-4 py-8">
+      <h2 className="mb-4 font-sans text-2xl font-bold text-gray-900">Your short links</h2>
+      {error && (
+        <div
+          role="alert"
+          className="text-destructive bg-destructive/10 border-destructive mb-4 rounded border px-4 py-2"
+        >
+          {error}
         </div>
+      )}
+      <form onSubmit={handleCreate} className="mb-6 flex flex-col gap-2 sm:flex-row">
+        <Input
+          className="flex-1 text-base"
+          placeholder="Paste a long URL..."
+          value={originalUrl}
+          onChange={(e) => setOriginalUrl(e.target.value)}
+          type="url"
+          aria-label="Paste a long URL"
+        />
+        <Input
+          className="text-base sm:w-44"
+          placeholder="Custom name (optional)"
+          value={customShortId}
+          onChange={(e) => setCustomShortId(e.target.value)}
+          type="text"
+          aria-label="Custom name"
+          maxLength={32}
+        />
+        <Button type="submit">Shorten</Button>
+      </form>
+      {user && urls.length === 0 && !error && (
+        <p className="text-muted-foreground">No links yet. Paste one above to get started.</p>
+      )}
+      <div className="space-y-4">
+        {urls.map((url) => (
+          <Card key={url._id} className="flex items-center justify-between gap-4 p-4">
+            <div className="min-w-0">
+              <a
+                href={shortLink(url.shortId)}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary mb-1 block truncate font-mono text-base hover:underline"
+              >
+                {shortLinkLabel(url.shortId)}
+              </a>
+              <div className="text-muted-foreground truncate text-sm">{url.originalUrl}</div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2 text-right">
+              <Link
+                to={`/stats/${url.shortId}`}
+                className="text-lg font-bold text-gray-900 hover:underline"
+              >
+                {url.clicks} clicks
+              </Link>
+              <Button
+                variant="destructive"
+                size="icon"
+                aria-label={`Delete ${url.shortId}`}
+                onClick={() => handleDelete(url.shortId)}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }
