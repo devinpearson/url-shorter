@@ -2,8 +2,8 @@ import passport from 'passport';
 import { Strategy as Auth0Strategy } from 'passport-auth0';
 import User, { IUser } from './models/User';
 
-passport.serializeUser((user: any, done) => {
-  done(null, user._id as string);
+passport.serializeUser((user, done) => {
+  done(null, String(user._id));
 });
 
 passport.deserializeUser(async (id: string, done) => {
@@ -30,7 +30,7 @@ passport.use(
           user = await User.create({
             googleId: profile.id,
             displayName: profile.displayName,
-            email: profile.emails?.[0].value || '',
+            email: profile.emails?.[0]?.value || undefined,
           });
         }
         return done(null, user as IUser);

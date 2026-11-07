@@ -107,7 +107,7 @@ export default function Dashboard() {
               >
                 <div>
                   <div className="font-mono text-primary text-base mb-1">
-                    {window.location.origin + "//" + url.shortId}
+                    {window.location.origin + "/" + url.shortId}
                   </div>
                   <div className="text-muted-foreground text-sm">
                     {url.originalUrl}
