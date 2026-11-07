@@ -23,7 +23,9 @@ export default function Login() {
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-semibold text-gray-900">Log in to Club Links</h1>
-          <p className="text-sm text-gray-600">Create short links for your club and see how often they're clicked.</p>
+          <p className="text-sm text-gray-600">
+            Create short links for your club and see how often they're clicked.
+          </p>
         </div>
 
         <Button

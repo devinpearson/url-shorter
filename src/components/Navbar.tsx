@@ -24,7 +24,10 @@ export default function Navbar() {
   useEffect(() => setOpen(false), [location.pathname]);
 
   const account = user ? (
-    <a href={`${API_BASE}/api/auth/logout`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+    <a
+      href={`${API_BASE}/api/auth/logout`}
+      className={buttonVariants({ variant: "outline", size: "sm" })}
+    >
       Log out
     </a>
   ) : user === null ? (
@@ -69,7 +72,11 @@ export default function Navbar() {
         <div id="mobile-menu" className="border-t border-border px-4 py-3 sm:hidden">
           <div className="flex flex-col gap-1">
             {NAV_LINKS.map(({ to, label }) => (
-              <NavLink key={to} to={to} className={({ isActive }) => cn(navLinkClass({ isActive }), "justify-start")}>
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) => cn(navLinkClass({ isActive }), "justify-start")}
+              >
                 {label}
               </NavLink>
             ))}

@@ -31,12 +31,12 @@ reloads pm2 with `NODE_ENV=production`.
 
 GitHub repository secrets (passed to the server on each deploy, and they override `backend/.env`):
 
-| Secret | Production value |
-| --- | --- |
-| `ORIGIN` | `https://toast.li` |
-| `AUTH0_CALLBACK_URL` | `https://toast.li/api/auth/callback` |
-| `MONGO_URI`, `SESSION_SECRET` | the production database and a long random secret |
-| `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_DOMAIN` | from the Auth0 application |
+| Secret                                                   | Production value                                 |
+| -------------------------------------------------------- | ------------------------------------------------ |
+| `ORIGIN`                                                 | `https://toast.li`                               |
+| `AUTH0_CALLBACK_URL`                                     | `https://toast.li/api/auth/callback`             |
+| `MONGO_URI`, `SESSION_SECRET`                            | the production database and a long random secret |
+| `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_DOMAIN` | from the Auth0 application                       |
 
 Every one of these must be set: an empty secret replaces the value in the server's `.env`.
 The optional Resend settings (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `CONTACT_RECIPIENT_EMAIL`) go in the

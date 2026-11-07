@@ -34,7 +34,9 @@ export default function Stats() {
       </Link>
       <Card className="mt-4 p-6 shadow-md">
         {error ? (
-          <p role="alert" className="text-destructive">{error}</p>
+          <p role="alert" className="text-destructive">
+            {error}
+          </p>
         ) : !url ? (
           <p className="text-muted-foreground">Loading…</p>
         ) : (

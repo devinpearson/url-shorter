@@ -19,7 +19,9 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function Contact() {
   const { user } = useAuth();
   const [params] = useSearchParams();
-  const initialTopic = TOPICS.some((t) => t.value === params.get("topic")) ? (params.get("topic") as Topic) : "question";
+  const initialTopic = TOPICS.some((t) => t.value === params.get("topic"))
+    ? (params.get("topic") as Topic)
+    : "question";
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -79,12 +81,17 @@ export default function Contact() {
     <div className="mx-auto w-full max-w-3xl px-4 py-10">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Contact</h1>
-        <p className="mt-2 text-gray-600">Questions, ideas, or a link that shouldn&apos;t be here? Let us know.</p>
+        <p className="mt-2 text-gray-600">
+          Questions, ideas, or a link that shouldn&apos;t be here? Let us know.
+        </p>
       </div>
 
       <Card className="p-6 shadow-md md:p-8">
         {status === "sent" ? (
-          <div role="status" className="flex items-start gap-3 rounded-md border border-green-200 bg-green-50 p-4">
+          <div
+            role="status"
+            className="flex items-start gap-3 rounded-md border border-green-200 bg-green-50 p-4"
+          >
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-600" aria-hidden="true" />
             <div className="text-sm text-green-800">
               <p className="font-medium">Thank you, your message has been sent.</p>
@@ -120,7 +127,10 @@ export default function Contact() {
                   Email <span className="text-destructive">*</span>
                 </label>
                 <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-gray-400" aria-hidden="true" />
+                  <Mail
+                    className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-gray-400"
+                    aria-hidden="true"
+                  />
                   <Input
                     id="email"
                     type="email"
@@ -203,8 +213,14 @@ export default function Contact() {
             </div>
 
             {status === "error" && error && (
-              <div role="alert" className="flex items-start gap-3 rounded-md border border-destructive bg-destructive/10 p-4">
-                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" aria-hidden="true" />
+              <div
+                role="alert"
+                className="flex items-start gap-3 rounded-md border border-destructive bg-destructive/10 p-4"
+              >
+                <AlertCircle
+                  className="mt-0.5 h-5 w-5 shrink-0 text-destructive"
+                  aria-hidden="true"
+                />
                 <p className="text-sm text-destructive">{error}</p>
               </div>
             )}

@@ -1,6 +1,6 @@
-import passport from 'passport';
-import { Strategy as Auth0Strategy } from 'passport-auth0';
-import User, { IUser } from './models/User';
+import passport from "passport";
+import { Strategy as Auth0Strategy } from "passport-auth0";
+import User, { IUser } from "./models/User";
 
 passport.serializeUser((user, done) => {
   done(null, String(user._id));
@@ -18,10 +18,10 @@ passport.deserializeUser(async (id: string, done) => {
 passport.use(
   new Auth0Strategy(
     {
-      domain: process.env.AUTH0_DOMAIN || '',
-      clientID: process.env.AUTH0_CLIENT_ID || '',
-      clientSecret: process.env.AUTH0_CLIENT_SECRET || '',
-      callbackURL: process.env.AUTH0_CALLBACK_URL || '',
+      domain: process.env.AUTH0_DOMAIN || "",
+      clientID: process.env.AUTH0_CLIENT_ID || "",
+      clientSecret: process.env.AUTH0_CLIENT_SECRET || "",
+      callbackURL: process.env.AUTH0_CALLBACK_URL || "",
     },
     async (accessToken, refreshToken, extraParams, profile, done) => {
       try {
@@ -37,6 +37,6 @@ passport.use(
       } catch (err) {
         return done(err, undefined);
       }
-    }
-  )
+    },
+  ),
 );

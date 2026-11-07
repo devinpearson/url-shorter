@@ -1,6 +1,6 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema } from "mongoose";
 
-export type ContactTopic = 'question' | 'feedback' | 'report';
+export type ContactTopic = "question" | "feedback" | "report";
 
 export interface IContactMessage extends Document {
   name: string;
@@ -16,12 +16,12 @@ export interface IContactMessage extends Document {
 const ContactMessageSchema = new Schema<IContactMessage>({
   name: { type: String, required: true, maxlength: 100 },
   email: { type: String, required: true, maxlength: 200 },
-  topic: { type: String, required: true, enum: ['question', 'feedback', 'report'] },
+  topic: { type: String, required: true, enum: ["question", "feedback", "report"] },
   link: { type: String, maxlength: 300 },
   message: { type: String, required: true, maxlength: 5000 },
-  user: { type: Schema.Types.ObjectId, ref: 'User' },
+  user: { type: Schema.Types.ObjectId, ref: "User" },
   emailed: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
 });
 
-export default mongoose.model<IContactMessage>('ContactMessage', ContactMessageSchema);
+export default mongoose.model<IContactMessage>("ContactMessage", ContactMessageSchema);
