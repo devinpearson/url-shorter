@@ -59,42 +59,29 @@ runs when the workflow is started by hand (Actions → CI/CD → Run workflow).
 
 ## Production (toast.li)
 
-Pushing to `main` runs the checks in `.github/workflows/deployment.yml` and, if they pass, deploys to the
-server over SSH: it pulls, installs, builds the frontend (`dist/`) and backend (`backend/dist/`), applies
-database migrations, then reloads pm2 with `NODE_ENV=production`. Production needs PostgreSQL 13 or newer.
+Club Links runs on the Hetzner server as a Docker Compose stack: one app container that serves the web app,
+the API and the short-link redirects, and its own PostgreSQL 16. nginx on the host terminates TLS for
+toast.li and proxies to the app. [deploy/README.md](deploy/README.md) has the details.
 
-### Settings
+- **Ansible** (`~/projects/ansible/hetzner`, `playbooks/configure-club-links.yml`) sets up the server side:
+  the stack folder, `secrets.env` (database password, session secret, Auth0 and Resend settings, from the
+  vault), nginx and the certificate.
+- **Every push to `main`** runs the checks and end-to-end tests, builds and smoke-tests the image, pushes it
+  to GHCR and starts it on the server, rolling back if it doesn't become healthy. Migrations run as the
+  app starts.
 
-GitHub repository secrets (passed to the server on each deploy, and they override `backend/.env`):
+### Pages and short links
 
-| Secret                                                   | Production value                                 |
-| -------------------------------------------------------- | ------------------------------------------------ |
-| `ORIGIN`                                                 | `https://toast.li`                               |
-| `AUTH0_CALLBACK_URL`                                     | `https://toast.li/api/auth/callback`             |
-| `DATABASE_URL`, `SESSION_SECRET`                         | the production Postgres and a long random secret |
-| `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_DOMAIN` | from the Auth0 application                       |
+The backend decides which paths are app pages: `APP_PAGES` in `backend/src/appPages.ts` (in any letter
+case). Those get `index.html`; any other single path segment is a short link. The same list keeps short
+links from taking those names and tells the Vite dev server what to forward. When you add a page, add it
+to `APP_PAGES` and to `src/main.tsx`.
 
-Every one of these must be set: an empty secret replaces the value in the server's `.env`.
-The optional Resend settings (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `CONTACT_RECIPIENT_EMAIL`) go in the
-server's `backend/.env`.
+### Click tracking
 
-In the Auth0 application, add:
+Every click updates the link's `clicks` count and `last_clicked_at`, and adds a row to `url_clicks` with
+the time (nothing about who clicked). `npm run links:inactive -- 365` lists links with no clicks for 365
+days, the candidates for releasing their names; it only reports.
 
-- **Allowed Callback URLs**: `https://toast.li/api/auth/callback`
-- **Allowed Logout URLs** and **Allowed Web Origins**: `https://toast.li`
-
-### Routing
-
-One domain serves the API, the app's pages and the short links, so nginx has to tell them apart.
-`deploy/nginx/toast.li.conf` is an example config:
-
-- `/api/...` goes to Express.
-- App pages (`/`, `/dashboard`, `/login`, `/about`, `/contact`, `/terms`, `/stats/...`) get `dist/index.html`.
-- Static files in `dist/` are served directly.
-- Anything else, such as `/club-roles`, goes to Express, which redirects the short link.
-
-When you add a page, add its path to the nginx config and to `RESERVED_SHORT_IDS` in
-`backend/src/routes/url.ts`, so no one can create a short link that the page would hide.
-
-The site must be served over HTTPS: in production the login cookie is only sent over HTTPS, and nginx must
-pass `X-Forwarded-Proto`.
+The site must be served over HTTPS: in production the login cookie is only sent over HTTPS, and nginx
+passes `X-Forwarded-Proto`.

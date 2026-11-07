@@ -76,8 +76,8 @@ export default function Terms() {
       <LegalSection title="5. What we store">
         <p>
           When you log in we store your name and email address from the sign-in provider. For each
-          short link we store its name, the address it points to, when it was created and a count of
-          how many times it was opened. We don&apos;t record who opened a link.
+          short link we store its name, the address it points to, when it was created, and the time
+          of each click. We don&apos;t record who opened a link.
         </p>
         <p>
           A cookie keeps you logged in; it isn&apos;t used for advertising or tracking. Messages
@@ -90,7 +90,15 @@ export default function Terms() {
         </p>
       </LegalSection>
 
-      <LegalSection title="6. No warranty">
+      <LegalSection title="6. Unused links">
+        <p>
+          A short name is meant to be used. Links that haven&apos;t been opened for a long time may
+          be removed so their names can be used by other clubs. If that is ever done, it will be
+          after at least a year without clicks.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="7. No warranty">
         <p>
           The site is provided free, &ldquo;as is&rdquo; and &ldquo;as available&rdquo;, without
           warranties of any kind. Short links may stop working if the site is unavailable, changes
@@ -98,7 +106,7 @@ export default function Terms() {
         </p>
       </LegalSection>
 
-      <LegalSection title="7. Limitation of liability">
+      <LegalSection title="8. Limitation of liability">
         <p>
           To the extent the law allows, the site&apos;s owner is not liable for any loss or damage
           arising from using the site, from the pages short links point to, or from the site or a
@@ -106,14 +114,14 @@ export default function Terms() {
         </p>
       </LegalSection>
 
-      <LegalSection title="8. Other sites">
+      <LegalSection title="9. Other sites">
         <p>
           Short links lead to sites run by others. Those sites aren&apos;t checked or endorsed by
           Club Links and have their own terms and privacy policies.
         </p>
       </LegalSection>
 
-      <LegalSection title="9. Changes">
+      <LegalSection title="10. Changes">
         <p>
           The site, its features and these terms can change, or the site can be paused or closed, at
           any time. The date at the top shows when these terms last changed; using the site after a
@@ -121,7 +129,7 @@ export default function Terms() {
         </p>
       </LegalSection>
 
-      <LegalSection title="10. Contact">
+      <LegalSection title="11. Contact">
         <p>
           Questions, reports or requests about these terms can be sent through the{" "}
           <Link to="/contact">contact page</Link>.

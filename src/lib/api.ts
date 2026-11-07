@@ -9,6 +9,7 @@ export interface ShortUrl {
   originalUrl: string;
   clicks: number;
   createdAt?: string;
+  lastClickedAt?: string | null;
 }
 
 export interface NewShortUrl {

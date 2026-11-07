@@ -1,6 +1,7 @@
 import { type NextFunction, type Request, type Response, Router } from "express";
 import rateLimit from "express-rate-limit";
 import type { Pool } from "pg";
+import { APP_PAGES } from "../appPages";
 import { isUniqueViolation } from "../db/pool";
 import { createUrl, deleteUrl, findUrl, listUrls } from "../db/urls";
 import { ensureAuth } from "../middleware/auth";
@@ -10,17 +11,12 @@ import { generateShortName, isValidShortName, normalizeShortName } from "../shor
 const GENERATE_ATTEMPTS = 5;
 
 // Paths used by the frontend or API that a custom short name must not shadow.
-const RESERVED_SHORT_IDS = new Set([
+const RESERVED_SHORT_IDS = new Set<string>([
+  ...APP_PAGES,
   "api",
-  "login",
   "logout",
-  "stats",
-  "dashboard",
   "assets",
   "static",
-  "about",
-  "contact",
-  "terms",
   "privacy",
   "portrait.png",
   "favicon.ico",

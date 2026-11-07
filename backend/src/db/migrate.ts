@@ -4,7 +4,7 @@ import type { Pool } from "pg";
 
 /** backend/migrations, from both backend/src/db (tsx, tests) and backend/dist/db (production). */
 const MIGRATIONS_DIR = path.join(__dirname, "../../migrations");
-// Any fixed number: stops two processes (e.g. two pm2 instances) migrating at once.
+// Any fixed number: stops two processes (e.g. two app containers starting together) migrating at once.
 const ADVISORY_LOCK_KEY = 74_210_001;
 
 /**

@@ -1,10 +1,11 @@
 import "./env"; // must stay first: loads .env before other modules read process.env
 import { createApp } from "./app";
 import { migrate } from "./db/migrate";
-import { createPool } from "./db/pool";
+import { createPool, hasDatabaseConfig } from "./db/pool";
 
-const { DATABASE_URL, SESSION_SECRET } = process.env;
-if (!DATABASE_URL) throw new Error("DATABASE_URL must be set");
+const { DATABASE_URL, SESSION_SECRET, STATIC_DIR } = process.env;
+if (!hasDatabaseConfig())
+  throw new Error("Set DATABASE_URL, or PGHOST and the other PG* variables");
 if (!SESSION_SECRET) throw new Error("SESSION_SECRET must be set");
 
 const pool = createPool(DATABASE_URL);
@@ -20,6 +21,8 @@ async function start() {
     sessionSecret: SESSION_SECRET as string,
     origin: process.env.ORIGIN,
     secureCookies: process.env.NODE_ENV === "production",
+    // Set in the production image, where this one process also serves the built frontend.
+    staticDir: STATIC_DIR,
   });
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

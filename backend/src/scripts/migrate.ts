@@ -6,12 +6,12 @@
  */
 import "../env";
 import { migrate } from "../db/migrate";
-import { createPool } from "../db/pool";
+import { createPool, hasDatabaseConfig } from "../db/pool";
 
-const url = process.env.DATABASE_URL;
-if (!url) throw new Error("DATABASE_URL must be set");
+if (!hasDatabaseConfig())
+  throw new Error("Set DATABASE_URL, or PGHOST and the other PG* variables");
 
-const pool = createPool(url, 1);
+const pool = createPool(process.env.DATABASE_URL, 1);
 migrate(pool)
   .then((ran) => {
     console.log(ran.length ? `Applied: ${ran.join(", ")}` : "Database is up to date.");

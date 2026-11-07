@@ -12,6 +12,7 @@
     "db:up": "docker compose up -d --wait postgres",
     "db:down": "docker compose down",
     "db:migrate": "tsx backend/src/scripts/migrate.ts",
+    "links:inactive": "tsx backend/src/scripts/listInactiveLinks.ts",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "check": "biome check .",

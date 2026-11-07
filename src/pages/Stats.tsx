@@ -52,6 +52,14 @@ export default function Stats() {
             <div className="text-muted-foreground mb-4 break-all">Goes to: {url.originalUrl}</div>
             <div className="text-3xl font-bold text-gray-900">{url.clicks}</div>
             <div className="text-sm text-gray-600">total clicks</div>
+            <div className="mt-3 text-sm text-gray-600">
+              {url.lastClickedAt
+                ? `Last clicked ${new Date(url.lastClickedAt).toLocaleString(undefined, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}`
+                : "Not clicked yet"}
+            </div>
           </>
         )}
       </Card>
