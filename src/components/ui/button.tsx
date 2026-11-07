@@ -48,4 +48,5 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 Button.displayName = "Button";
 
-export { Button };
+// eslint-disable-next-line react-refresh/only-export-components -- shared class helper for links styled as buttons
+export { Button, buttonVariants };
