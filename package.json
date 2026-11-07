@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "backend:dev": "npx tsc --project backend/tsconfig.json && node -r dotenv/config backend/dist/index.js dotenv_config_path=backend/.env"
+    "backend:dev": "npm run build:backend && node backend/dist/index.js",
+    "build:backend": "tsc --project backend/tsconfig.json",
+    "typecheck": "tsc -b && tsc --noEmit --project backend/tsconfig.json"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.14",
@@ -23,10 +25,15 @@
     "@types/shortid": "^2.2.0",
     "axios": "^1.10.0",
     "bcryptjs": "^3.0.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "connect-mongo": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.7.3",
     "express-session": "^1.18.1",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.523.0",
     "mongoose": "^8.16.0",
@@ -38,7 +45,8 @@
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.2",
     "shadcn-ui": "^0.9.5",
-    "shortid": "^2.2.17"
+    "shortid": "^2.2.17",
+    "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",
