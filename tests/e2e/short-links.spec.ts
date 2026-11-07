@@ -43,7 +43,7 @@ test.describe("short links", () => {
     await expect(row).toContainText("2 clicks");
     await row.getByRole("link", { name: "2 clicks" }).click();
     await expect(page).toHaveURL(new RegExp(`/stats/${name}$`));
-    await expect(page.getByText("total clicks")).toBeVisible();
+    await expect(page.getByText("2 clicks in the last 30 days")).toBeVisible();
   });
 
   test.describe("rejected names", () => {
@@ -85,6 +85,7 @@ test.describe("short links", () => {
 
     const link = page.getByRole("link", { name: new RegExp(`/${name}$`) });
     await expect(link).toBeVisible();
+    page.once("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: `Delete ${name}` }).click();
     await expect(link).toHaveCount(0);
   });

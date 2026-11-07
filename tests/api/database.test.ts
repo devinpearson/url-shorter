@@ -11,7 +11,11 @@ describe("database", () => {
     // setupApi already migrated; a second run (e.g. a restart) has nothing to do.
     expect(await migrate(db())).toEqual([]);
     const { rows } = await db().query("SELECT version FROM schema_migrations ORDER BY version");
-    expect(rows.map((r) => r.version)).toEqual(["001_schema.sql", "002_click_tracking.sql"]);
+    expect(rows.map((r) => r.version)).toEqual([
+      "001_schema.sql",
+      "002_click_tracking.sql",
+      "003_sources_and_destination_history.sql",
+    ]);
   });
 
   it("reuses the user on repeat logins, even when they race", async () => {

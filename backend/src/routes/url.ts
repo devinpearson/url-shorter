@@ -3,7 +3,14 @@ import rateLimit from "express-rate-limit";
 import type { Pool } from "pg";
 import { APP_PAGES } from "../appPages";
 import { isUniqueViolation } from "../db/pool";
-import { createUrl, deleteUrl, findUrl, listUrls } from "../db/urls";
+import {
+  createUrl,
+  deleteUrl,
+  findUrl,
+  getUrlStats,
+  listUrls,
+  updateDestination,
+} from "../db/urls";
 import { ensureAuth } from "../middleware/auth";
 import { generateShortName, isValidShortName, normalizeShortName } from "../shortNames";
 
@@ -123,11 +130,33 @@ export function urlRouter(pool: Pool) {
     }),
   );
 
-  // Get stats for a short URL
+  // One link with its stats: clicks per day, QR scans vs typed links, and past destinations
   router.get(
     "/:shortId",
     asyncHandler(async (req, res) => {
       const url = await findUrl(pool, normalizeShortName(req.params.shortId), userId(req));
+      if (!url) {
+        res.status(404).json({ message: "Not found" });
+        return;
+      }
+      res.json({ ...url, stats: await getUrlStats(pool, url.id) });
+    }),
+  );
+
+  // Point a link somewhere new (a new Zoom link) without changing its name or the poster
+  router.patch(
+    "/:shortId",
+    asyncHandler(async (req, res) => {
+      const originalUrl = parseHttpUrl(req.body?.originalUrl);
+      if (!originalUrl) {
+        res.status(400).json({ message: "Please enter a valid http:// or https:// URL." });
+        return;
+      }
+      const url = await updateDestination(pool, {
+        shortId: normalizeShortName(req.params.shortId),
+        userId: userId(req),
+        originalUrl,
+      });
       if (!url) {
         res.status(404).json({ message: "Not found" });
         return;

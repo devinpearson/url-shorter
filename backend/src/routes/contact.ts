@@ -6,6 +6,7 @@ import {
   markContactMessageEmailed,
   saveContactMessage,
 } from "../db/contactMessages";
+import { escapeHtml } from "../html";
 
 const TOPICS: Record<ContactTopic, string> = {
   question: "Question",
@@ -16,12 +17,6 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const text = (value: unknown, max: number) =>
   typeof value === "string" ? value.trim().slice(0, max) : "";
-
-const escapeHtml = (value: string) =>
-  value.replace(
-    /[&<>"']/g,
-    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[c] ?? c,
-  );
 
 /** Emails the message through Resend's HTTP API. Returns false when email isn't configured. */
 async function sendEmail(msg: {

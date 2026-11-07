@@ -41,6 +41,31 @@ export async function createShortUrl(input: NewShortUrl): Promise<ShortUrl> {
   return res.data;
 }
 
+export interface LinkStats {
+  daily: { day: string; clicks: number }[];
+  sources: { link: number; qr: number };
+  history: { originalUrl: string; replacedAt: string }[];
+}
+
+export type ShortUrlWithStats = ShortUrl & { stats: LinkStats };
+
+export async function fetchLink(shortId: string): Promise<ShortUrlWithStats> {
+  const res = await axios.get<ShortUrlWithStats>(`/api/urls/${encodeURIComponent(shortId)}`);
+  return res.data;
+}
+
+/** Points a link somewhere new; its name, posters and QR codes keep working. */
+export async function updateDestination(shortId: string, originalUrl: string): Promise<ShortUrl> {
+  const res = await axios.patch<ShortUrl>(`/api/urls/${encodeURIComponent(shortId)}`, {
+    originalUrl: originalUrl.trim(),
+  });
+  return res.data;
+}
+
+export async function deleteLink(shortId: string): Promise<void> {
+  await axios.delete(`/api/urls/${encodeURIComponent(shortId)}`);
+}
+
 export function shortLink(shortId: string): string {
   return `${window.location.origin}/${shortId}`;
 }
