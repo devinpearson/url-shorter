@@ -1,8 +1,5 @@
 import { test as base, expect, type Page } from "@playwright/test";
 
-/** Where the e2e backend listens; short link redirects are served by it directly. */
-export const API_URL = `http://127.0.0.1:${process.env.E2E_API_PORT ?? 5101}`;
-
 /** A name no other test in this run will use, since all tests share one database. */
 export function uniqueName(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;

@@ -1,15 +1,18 @@
-import { API_URL, expect, fakeAuth0, logIn, test, uniqueName } from "./fixtures";
+import { expect, fakeAuth0, logIn, test, uniqueName } from "./fixtures";
 
 test.describe("short links", () => {
   test("a logged-out officer fills in the form, logs in and gets their link", async ({
     page,
-    request,
+    baseURL,
   }) => {
     const name = uniqueName("roles");
+    // A destination served by the test app itself, so the test doesn't need the internet.
+    // (Playwright can't stub a page reached through a redirect.)
+    const destinationUrl = `${baseURL}/terms?from=${name}`;
     await fakeAuth0(page);
 
     await page.goto("/");
-    await page.getByLabel("Link to shorten").fill("https://example.com/role-signup");
+    await page.getByLabel("Link to shorten").fill(destinationUrl);
     await page.getByLabel(/Custom name/).fill(name);
     await page.getByRole("button", { name: "Log in and shorten" }).click();
 
@@ -18,10 +21,15 @@ test.describe("short links", () => {
     await expect(page.getByRole("link", { name: new RegExp(`/${name}$`) })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Main" })).toContainText("Log out");
 
-    // The short link redirects (served by the backend, as nginx does on toast.li).
-    const redirect = await request.get(`${API_URL}/${name}`, { maxRedirects: 0 });
-    expect(redirect.status()).toBe(302);
-    expect(redirect.headers().location).toBe("https://example.com/role-signup");
+    // Clicking the short link (it opens in a new tab) lands on the destination, not the app's
+    // home page: the web server must hand short links to the backend, as nginx does on toast.li.
+    const [destination] = await Promise.all([
+      page.waitForEvent("popup"),
+      page.getByRole("link", { name: new RegExp(`/${name}$`) }).click(),
+    ]);
+    await expect(destination).toHaveURL(destinationUrl);
+    await expect(destination.getByRole("heading", { level: 1 })).toHaveText("Terms of Use");
+    await destination.close();
 
     // …and the click shows on the dashboard and the stats page.
     await page.getByRole("link", { name: "All your links" }).click();

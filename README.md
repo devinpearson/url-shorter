@@ -25,7 +25,9 @@ The schema lives in numbered SQL files in `backend/migrations/`. To change it, a
 start, each in a transaction, and records them in `schema_migrations`. `npm run db:migrate` applies them
 without starting the server.
 
-Short links don't redirect through the Vite dev server; open `http://localhost:5001/<name>` to test one.
+The Vite dev server forwards `/api` and short links (`/club-roles`) to the backend, the same split nginx
+makes on toast.li, so links you create redirect locally too. The list of app pages that stay with the
+frontend is in `vite.config.ts`.
 
 ## Quality checks
 

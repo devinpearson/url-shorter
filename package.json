@@ -18,7 +18,7 @@
     "check:fix": "biome check --write .",
     "typecheck": "tsc -b && tsc --noEmit --project backend/tsconfig.json && tsc --noEmit --project tsconfig.test.json",
     "knip": "knip",
-    "lint:md": "markdownlint-cli2 \"**/*.md\" \"#node_modules\"",
+    "lint:md": "markdownlint-cli2 \"**/*.md\"",
     "test": "vitest",
     "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage",
