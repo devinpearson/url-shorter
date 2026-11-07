@@ -23,7 +23,7 @@ export async function startTestPostgres() {
     /** Empties every table except the migrations record. */
     async reset() {
       await pool.query(
-        "TRUNCATE users, urls, url_clicks, contact_messages, session RESTART IDENTITY CASCADE",
+        "TRUNCATE users, urls, url_clicks, url_destination_history, contact_messages, session RESTART IDENTITY CASCADE",
       );
     },
     async stop() {

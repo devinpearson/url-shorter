@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { QrCode } from "../components/QrCode";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -275,9 +276,10 @@ export default function Landing() {
                 however they like.
               </p>
               <p className="mt-1 truncate text-sm text-gray-500">→ {created.originalUrl}</p>
-              <div className="mt-3 flex flex-wrap gap-4 text-sm">
+              <QrCode shortId={created.shortId} size={136} className="mt-4" />
+              <div className="mt-4 flex flex-wrap gap-4 text-sm">
                 <Link to={`/stats/${created.shortId}`} className="text-primary hover:underline">
-                  See clicks
+                  Manage this link
                 </Link>
                 <Link to="/dashboard" className="text-primary hover:underline">
                   All your links

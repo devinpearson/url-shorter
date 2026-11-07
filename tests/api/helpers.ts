@@ -24,6 +24,7 @@ export function setupApi(options: { staticDir?: string } = {}) {
     app = createApp({
       pool: pg.pool,
       sessionSecret: "test-secret",
+      origin: process.env.ORIGIN,
       enableTestLogin: true,
       staticDir: options.staticDir,
     });

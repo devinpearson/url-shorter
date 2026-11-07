@@ -17,7 +17,9 @@ export default function App() {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    document.title = TITLES[pathname] ?? "Club Links";
+    document.title =
+      TITLES[pathname] ??
+      (pathname.startsWith("/stats/") ? "Manage link – Club Links" : "Club Links");
     window.scrollTo(0, 0);
   }, [pathname]);
 

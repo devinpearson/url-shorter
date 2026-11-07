@@ -6,7 +6,8 @@ import session from "express-session";
 import helmet from "helmet";
 import type { Pool } from "pg";
 import { isAppPagePath } from "./appPages";
-import { recordClick } from "./db/urls";
+import { findDestination, recordClick } from "./db/urls";
+import { escapeHtml, simplePage } from "./html";
 import { createPassport } from "./passport";
 import { authRouter } from "./routes/auth";
 import { contactRouter } from "./routes/contact";
@@ -42,6 +43,9 @@ export function createApp(options: AppOptions) {
     throw new Error("Test login must never be enabled in production");
   }
   const { pool } = options;
+  // How the site is written on screen (toast.li): from ORIGIN, so proxies can't change it.
+  const configuredHost = options.origin ? new URL(options.origin).host : undefined;
+  const siteHost = (req: Request) => configuredHost ?? req.get("host") ?? "";
   const passport = createPassport(pool);
 
   const app = express();
@@ -117,8 +121,22 @@ export function createApp(options: AppOptions) {
   // Short links: one path segment that isn't an app page (must be after all /api routes)
   app.get("/:shortId", async (req, res) => {
     try {
+      // toast.li/name+ shows where a link goes instead of going there (and isn't counted).
+      if (req.params.shortId.endsWith("+")) {
+        const name = normalizeShortName(req.params.shortId.slice(0, -1));
+        const destination = name ? await findDestination(pool, name) : null;
+        if (!destination) {
+          res.status(404).type("html").send(NOT_FOUND_PAGE);
+          return;
+        }
+        res.type("html").send(previewPage(`${siteHost(req)}/${name}`, destination));
+        return;
+      }
+
       // Names are stored lowercase, so /Club-Roles and /club-roles are the same link.
-      const originalUrl = await recordClick(pool, normalizeShortName(req.params.shortId));
+      // QR codes add ?src=qr, so scans can be told apart from typed and clicked links.
+      const source = req.query.src === "qr" ? "qr" : "link";
+      const originalUrl = await recordClick(pool, normalizeShortName(req.params.shortId), source);
       if (originalUrl) {
         res.redirect(originalUrl);
         return;
@@ -150,27 +168,22 @@ export function createApp(options: AppOptions) {
 }
 
 /** Shown for a mistyped or deleted short link: plain HTML, so it works without the app. */
-const NOT_FOUND_PAGE = `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Link not found – Club Links</title>
-<style>
-  body { font-family: system-ui, sans-serif; margin: 0; min-height: 100vh; display: grid;
-         place-items: center; background: #fff; color: #1f2937; padding: 1.5rem; }
-  main { max-width: 32rem; text-align: center; }
-  h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
-  p { color: #4b5563; line-height: 1.6; }
-  a { color: #4f46e5; font-weight: 600; }
-</style>
-</head>
-<body>
-<main>
-  <h1>We couldn't find that link</h1>
+const NOT_FOUND_PAGE = simplePage(
+  "Link not found",
+  `<h1>We couldn't find that link</h1>
   <p>Check the spelling against the poster or message you got it from. Capital letters don't
   matter, but dashes do: <strong>club-roles</strong> is different from <strong>clubroles</strong>.</p>
-  <p><a href="/">Go to Club Links</a></p>
-</main>
-</body>
-</html>`;
+  <p><a href="/">Go to Club Links</a></p>`,
+);
+
+/** toast.li/name+ : where the link goes, so people can check before visiting. */
+function previewPage(shortLink: string, destination: string) {
+  return simplePage(
+    "Where this link goes",
+    `<h1>${escapeHtml(shortLink)} goes to</h1>
+  <p class="destination">${escapeHtml(destination)}</p>
+  <p><a class="button" href="${escapeHtml(destination)}" rel="noreferrer">Continue to this page</a></p>
+  <p class="small">Club Links are made by Toastmasters club officers. If this one looks wrong,
+  <a href="/contact?topic=report">report it</a>.</p>`,
+  );
+}
