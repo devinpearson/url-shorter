@@ -1,57 +1,41 @@
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, Navigate } from "react-router-dom";
 import axios from "axios";
-import Navbar from "../components/Navbar";
 import { Trash2 } from "lucide-react";
-
-interface Url {
-  _id: string;
-  shortId: string;
-  originalUrl: string;
-  clicks: number;
-}
+import { apiErrorMessage, createShortUrl, shortLink, shortLinkLabel, type ShortUrl } from "../lib/api";
+import { useAuth } from "../lib/auth";
 
 export default function Dashboard() {
-  const [urls, setUrls] = useState<Url[]>([]);
+  const { user } = useAuth();
+  const [urls, setUrls] = useState<ShortUrl[]>([]);
   const [originalUrl, setOriginalUrl] = useState("");
   const [customShortId, setCustomShortId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!user) return;
     axios
-      .get("/api/urls")
-      .then((res) => {
-        if (Array.isArray(res.data)) {
-          setUrls(res.data);
-        } else {
-          setError("Not authenticated or unexpected response.");
-        }
-      })
-      .catch(() => {
-        setError("You must be logged in to view your URLs.");
-      });
-  }, []);
+      .get<ShortUrl[]>("/api/urls")
+      .then((res) => setUrls(Array.isArray(res.data) ? res.data : []))
+      .catch((err) => setError(apiErrorMessage(err)));
+  }, [user]);
 
-  const handleCreate = async () => {
-    if (!originalUrl) return;
+  if (user === null) return <Navigate to="/login?next=/dashboard" replace />;
+
+  const handleCreate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!originalUrl.trim()) return;
     try {
-      const payload: { originalUrl: string; customShortId?: string } = { originalUrl };
-      if (customShortId.trim()) payload.customShortId = customShortId.trim();
-      const res = await axios.post("/api/urls", payload);
-      setUrls([res.data, ...urls]);
+      const created = await createShortUrl({ originalUrl, customShortId });
+      setUrls((prev) => [created, ...prev]);
       setOriginalUrl("");
       setCustomShortId("");
       setError(null);
     } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 409) {
-        setError("That short ID is already in use. Please choose another.");
-      } else if (axios.isAxiosError(err) && err.response?.status === 401) {
-        setError("You must be logged in to create URLs.");
-      } else {
-        setError("An error occurred. Please try again.");
-      }
+      setError(apiErrorMessage(err));
     }
   };
 
@@ -65,68 +49,68 @@ export default function Dashboard() {
   };
 
   return (
-    <>
-      <Navbar />
-      <div className="max-w-2xl mx-auto py-8">
-        <h2 className="text-2xl font-bold mb-4 font-sans text-primary">
-          Your Shortened URLs
+    <div className="max-w-2xl mx-auto px-4 py-8">
+        <h2 className="text-2xl font-bold mb-4 font-sans text-gray-900">
+          Your short links
         </h2>
         {error && (
-          <div className="text-destructive mb-4 bg-destructive/10 border border-destructive rounded px-4 py-2">
+          <div role="alert" className="text-destructive mb-4 bg-destructive/10 border border-destructive rounded px-4 py-2">
             {error}
           </div>
         )}
-        <div className="flex gap-2 mb-6">
+        <form onSubmit={handleCreate} className="flex flex-col gap-2 mb-6 sm:flex-row">
           <Input
             className="flex-1 text-base"
             placeholder="Paste a long URL..."
             value={originalUrl}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOriginalUrl(e.target.value)}
+            onChange={(e) => setOriginalUrl(e.target.value)}
             type="url"
             aria-label="Paste a long URL"
           />
           <Input
-            className="w-40 text-base"
-            placeholder="Custom short ID (optional)"
+            className="text-base sm:w-44"
+            placeholder="Custom name (optional)"
             value={customShortId}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomShortId(e.target.value)}
+            onChange={(e) => setCustomShortId(e.target.value)}
             type="text"
-            aria-label="Custom short ID"
+            aria-label="Custom name"
             maxLength={32}
           />
-          <Button onClick={handleCreate} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded" >
-            Shorten
-          </Button>
-        </div>
+          <Button type="submit">Shorten</Button>
+        </form>
+        {user && urls.length === 0 && !error && (
+          <p className="text-muted-foreground">No links yet. Paste one above to get started.</p>
+        )}
         <div className="space-y-4">
-          {Array.isArray(urls) &&
-            urls.map((url) => (
-              <Card
-                key={url._id}
-                className="flex items-center justify-between p-4 rounded-md shadow-md border border-border bg-background"
-              >
-                <div>
-                  <div className="font-mono text-primary text-base mb-1">
-                    {window.location.origin + "/" + url.shortId}
-                  </div>
-                  <div className="text-muted-foreground text-sm">
-                    {url.originalUrl}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 text-right">
-                  <div className="font-bold text-lg">{url.clicks} clicks</div>
-                  <Button
-                    className="bg-red-600 hover:bg-red-700 text-white rounded p-2"
-                    aria-label="Delete URL"
-                    onClick={() => handleDelete(url.shortId)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </Card>
-            ))}
+          {urls.map((url) => (
+            <Card key={url._id} className="flex items-center justify-between gap-4 p-4">
+              <div className="min-w-0">
+                <a
+                  href={shortLink(url.shortId)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block truncate font-mono text-primary text-base mb-1 hover:underline"
+                >
+                  {shortLinkLabel(url.shortId)}
+                </a>
+                <div className="truncate text-muted-foreground text-sm">{url.originalUrl}</div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2 text-right">
+                <Link to={`/stats/${url.shortId}`} className="font-bold text-lg text-gray-900 hover:underline">
+                  {url.clicks} clicks
+                </Link>
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  aria-label={`Delete ${url.shortId}`}
+                  onClick={() => handleDelete(url.shortId)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </Card>
+          ))}
         </div>
-      </div>
-    </>
+    </div>
   );
 }

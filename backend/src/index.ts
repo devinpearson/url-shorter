@@ -9,6 +9,7 @@ import MongoStore from 'connect-mongo';
 import './passport'; // Import Passport configuration
 import authRoutes from './routes/auth';
 import urlRoutes from './routes/url';
+import contactRoutes from './routes/contact';
 import Url from './models/Url';
 
 const { MONGO_URI, SESSION_SECRET } = process.env;
@@ -52,6 +53,7 @@ app.get('/api/public', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/urls', urlRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Catch-all for short links (must be after all /api routes)
 app.get('/:shortId', async (req, res) => {

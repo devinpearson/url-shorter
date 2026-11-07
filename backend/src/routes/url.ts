@@ -15,7 +15,8 @@ const SHORT_ID_PATTERN = /^[A-Za-z0-9_-]{3,32}$/;
 // Paths used by the frontend or API that a custom short ID must not shadow.
 const RESERVED_SHORT_IDS = new Set([
   'api', 'login', 'logout', 'stats', 'dashboard', 'assets', 'static',
-  'favicon.ico', 'robots.txt', 'index.html',
+  'about', 'contact', 'terms', 'privacy', 'portrait.png',
+  'favicon.ico', 'favicon.svg', 'robots.txt', 'index.html',
 ]);
 
 // Express 4 does not catch errors from async handlers; forward them to `next`.

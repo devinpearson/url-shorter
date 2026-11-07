@@ -1,28 +1,64 @@
-# URL Shortener App
+# Club Links (toast.li)
 
-This is a monorepo for a URL shortener application with:
-- **Backend**: Node.js, Express, TypeScript, MongoDB, Passport.js (Google social auth)
-- **Frontend**: React, TypeScript, shadcn/ui
+A link shortener for Toastmasters clubs, live at **https://toast.li**. Club officers log in and turn long
+meeting sign-up sheets, online meeting links and guest forms into short names like `toast.li/club-roles`,
+then see how many people clicked.
 
-## Features
-- Social login (Google)
-- Create, manage, and view statistics for shortened URLs
-- Modern UI with shadcn/ui
+- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS v4, shadcn-style components
+- **Backend**: Node.js, Express, TypeScript, MongoDB (Mongoose), Passport with Auth0
+- **Email**: contact form messages are saved to MongoDB and sent through Resend when configured
 
-## Getting Started
+## Local development
 
-### Backend
-1. `cd backend`
-2. Create a `.env` file with your MongoDB URI, Google OAuth credentials, and session secret.
-3. `npm run dev` (or `npx ts-node src/index.ts`)
+1. `npm install` in the project root.
+2. Copy `backend/.env.example` to `backend/.env` and fill it in. For local development set
+   `ORIGIN=http://localhost:5173` and `AUTH0_CALLBACK_URL=http://localhost:5001/api/auth/callback`,
+   and add both to the Auth0 application's allowed URLs.
+3. Start the backend: `npm run backend:dev` (port 5001).
+4. Start the frontend: `npm run dev` (port 5173). Vite forwards `/api` requests to the backend.
 
-### Frontend
-1. `npm install` (in project root)
-2. `npm run dev`
+Short links don't redirect through the Vite dev server; open `http://localhost:5001/<name>` to test one.
 
----
+Before pushing, run `npm run lint`, `npm run typecheck` and `npm run build`. CI runs the same checks.
 
-## To Do
-- Implement backend routes and models
-- Set up Passport.js Google strategy
-- Build frontend pages and components
+## Production (toast.li)
+
+Pushing to `main` runs the checks in `.github/workflows/deployment.yml` and, if they pass, deploys to the
+server over SSH: it pulls, installs, builds the frontend (`dist/`) and backend (`backend/dist/`), then
+reloads pm2 with `NODE_ENV=production`.
+
+### Settings
+
+GitHub repository secrets (passed to the server on each deploy, and they override `backend/.env`):
+
+| Secret | Production value |
+| --- | --- |
+| `ORIGIN` | `https://toast.li` |
+| `AUTH0_CALLBACK_URL` | `https://toast.li/api/auth/callback` |
+| `MONGO_URI`, `SESSION_SECRET` | the production database and a long random secret |
+| `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_DOMAIN` | from the Auth0 application |
+
+Every one of these must be set: an empty secret replaces the value in the server's `.env`.
+The optional Resend settings (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `CONTACT_RECIPIENT_EMAIL`) go in the
+server's `backend/.env`.
+
+In the Auth0 application, add:
+
+- **Allowed Callback URLs**: `https://toast.li/api/auth/callback`
+- **Allowed Logout URLs** and **Allowed Web Origins**: `https://toast.li`
+
+### Routing
+
+One domain serves the API, the app's pages and the short links, so nginx has to tell them apart.
+`deploy/nginx/toast.li.conf` is an example config:
+
+- `/api/...` goes to Express.
+- App pages (`/`, `/dashboard`, `/login`, `/about`, `/contact`, `/terms`, `/stats/...`) get `dist/index.html`.
+- Static files in `dist/` are served directly.
+- Anything else, such as `/club-roles`, goes to Express, which redirects the short link.
+
+When you add a page, add its path to the nginx config and to `RESERVED_SHORT_IDS` in
+`backend/src/routes/url.ts`, so no one can create a short link that the page would hide.
+
+The site must be served over HTTPS: in production the login cookie is only sent over HTTPS, and nginx must
+pass `X-Forwarded-Proto`.

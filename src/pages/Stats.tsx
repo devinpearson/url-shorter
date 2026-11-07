@@ -1,38 +1,58 @@
 import { Card } from "../components/ui/card";
-import { useParams } from "react-router-dom";
+import { Link, Navigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import axios from "axios";
-import Navbar from "../components/Navbar";
-
-interface Url {
-  _id: string;
-  shortId: string;
-  originalUrl: string;
-  clicks: number;
-}
+import { shortLink, shortLinkLabel, type ShortUrl } from "../lib/api";
+import { useAuth } from "../lib/auth";
 
 export default function Stats() {
+  const { user } = useAuth();
   const { shortId } = useParams();
-  const [url, setUrl] = useState<Url | null>(null);
+  const [url, setUrl] = useState<ShortUrl | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    axios.get(`/api/urls/${shortId}`).then((res) => setUrl(res.data));
-  }, [shortId]);
+    if (!user || !shortId) return;
+    axios
+      .get<ShortUrl>(`/api/urls/${encodeURIComponent(shortId)}`)
+      .then((res) => setUrl(res.data))
+      .catch((err) =>
+        setError(
+          axios.isAxiosError(err) && err.response?.status === 404
+            ? "That link doesn't exist, or it belongs to another account."
+            : "Couldn't load this link. Please try again.",
+        ),
+      );
+  }, [user, shortId]);
 
-  if (!url) return <div className="text-center text-muted-foreground py-12">Loading...</div>;
+  if (user === null) return <Navigate to={`/login?next=/stats/${shortId ?? ""}`} replace />;
 
   return (
-    <>
-      <Navbar />
-      <div className="max-w-xl mx-auto py-8">
-        <Card className="p-6 rounded-md shadow-md border border-border bg-background">
-          <div className="font-mono text-primary text-lg mb-2">
-            {window.location.origin + "/" + url.shortId}
-          </div>
-          <div className="mb-2 text-muted-foreground">Original URL: {url.originalUrl}</div>
-          <div className="font-bold text-lg">Total Clicks: {url.clicks}</div>
-        </Card>
-      </div>
-    </>
+    <div className="max-w-xl mx-auto px-4 py-8">
+      <Link to="/dashboard" className="text-sm text-primary hover:underline">
+        ← All your links
+      </Link>
+      <Card className="mt-4 p-6 shadow-md">
+        {error ? (
+          <p role="alert" className="text-destructive">{error}</p>
+        ) : !url ? (
+          <p className="text-muted-foreground">Loading…</p>
+        ) : (
+          <>
+            <a
+              href={shortLink(url.shortId)}
+              target="_blank"
+              rel="noreferrer"
+              className="block break-all font-mono text-primary text-lg mb-2 hover:underline"
+            >
+              {shortLinkLabel(url.shortId)}
+            </a>
+            <div className="mb-4 break-all text-muted-foreground">Goes to: {url.originalUrl}</div>
+            <div className="text-3xl font-bold text-gray-900">{url.clicks}</div>
+            <div className="text-sm text-gray-600">total clicks</div>
+          </>
+        )}
+      </Card>
+    </div>
   );
 }

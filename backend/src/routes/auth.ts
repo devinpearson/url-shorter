@@ -24,7 +24,7 @@ router.get('/logout', (req, res, next) => {
     if (err) return next(err);
     req.session.destroy(() => {
       res.clearCookie('connect.sid');
-      res.redirect(frontendUrl('/login'));
+      res.redirect(frontendUrl('/'));
     });
   });
 });
