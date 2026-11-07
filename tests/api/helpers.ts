@@ -10,7 +10,7 @@ type TestPostgres = Awaited<ReturnType<typeof startTestPostgres>>;
  * the tables before each test. Use `api()` for anonymous requests, `loggedIn()` for an agent
  * that keeps a logged-in session cookie, and `db()` to query the database directly.
  */
-export function setupApi() {
+export function setupApi(options: { staticDir?: string } = {}) {
   let pg: TestPostgres;
   let app: ReturnType<typeof createApp>;
 
@@ -21,7 +21,12 @@ export function setupApi() {
   beforeEach(async () => {
     await pg.reset();
     // A fresh app per test also resets the rate limiters.
-    app = createApp({ pool: pg.pool, sessionSecret: "test-secret", enableTestLogin: true });
+    app = createApp({
+      pool: pg.pool,
+      sessionSecret: "test-secret",
+      enableTestLogin: true,
+      staticDir: options.staticDir,
+    });
   });
 
   afterAll(async () => {

@@ -122,35 +122,121 @@ jobs:
           include-hidden-files: true
           retention-days: 14
 
+  # Build the image, smoke-test it, push it to GHCR, then start it on the Hetzner server.
+  # The server side (stack folder, secrets.env, nginx and TLS for toast.li) is set up by
+  # ansible/hetzner playbooks/configure-club-links.yml. See deploy/README.md.
   deploy:
     needs: [check, e2e]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # One deploy at a time; a newer push waits instead of racing the older one.
+    concurrency:
+      group: deploy-club-links
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE_NAME: ghcr.io/${{ github.repository }}
+      STACK_DIR: stacks/club-links
     steps:
-      - name: Deploy
-        uses: appleboy/ssh-action@v1
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
-          ORIGIN: ${{ secrets.ORIGIN }}
-          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
-          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
-          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
-          AUTH0_CALLBACK_URL: ${{ secrets.AUTH0_CALLBACK_URL }}
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Image tag
+        id: tag
+        run: echo "tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          host: ${{ secrets.DROPLET_IP }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          username: root
-          port: 22
-          # `env` above only exists on the runner; `envs` forwards these names to the server.
-          envs: DATABASE_URL,SESSION_SECRET,ORIGIN,AUTH0_CLIENT_ID,AUTH0_CLIENT_SECRET,AUTH0_DOMAIN,AUTH0_CALLBACK_URL
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}
+            ${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test
+        run: bash scripts/docker-smoke-test.sh "${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}"
+
+      - name: Push image
+        run: |
+          docker push "${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}"
+          docker push "${{ env.IMAGE_NAME }}:latest"
+
+      - name: Create stack directory on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: mkdir -p "$HOME/${{ env.STACK_DIR }}"
+
+      - name: Copy stack file to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: deploy/compose.yml
+          target: ${{ env.STACK_DIR }}
+          strip_components: 1
+
+      - name: Deploy on server
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.tag }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+          APP_PORT: ${{ vars.APP_PORT || '8090' }}
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          envs: IMAGE_TAG,GHCR_TOKEN,GHCR_USER,APP_PORT
+          command_timeout: 10m
           script: |
-            set -e
-            cd url-shorter/
-            git pull origin main
-            npm ci
-            npm run build
-            npm run build:backend
-            # Fails the deploy before reloading if a migration can't be applied.
-            node backend/dist/scripts/migrate.js
-            NODE_ENV=production pm2 reload all --update-env
+            set -eu
+            cd "$HOME/${{ env.STACK_DIR }}"
+
+            # Ansible (ansible/hetzner playbooks/configure-club-links.yml) owns the secrets.
+            if [ ! -f secrets.env ]; then
+              echo "secrets.env is missing. Run playbooks/configure-club-links.yml first." >&2
+              exit 1
+            fi
+
+            PREVIOUS_TAG=$(sed -n 's/^IMAGE_TAG=//p' .env 2>/dev/null || true)
+            write_env() { printf 'IMAGE_TAG=%s\nAPP_PORT=%s\n' "$1" "$APP_PORT" > .env; }
+
+            printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            write_env "$IMAGE_TAG"
+            docker compose pull
+
+            # --wait returns once db and app report healthy (migrations run as the app starts).
+            if docker compose up -d --remove-orphans --wait --wait-timeout 180; then
+              docker image prune -f >/dev/null
+              echo "Deployed $IMAGE_TAG"
+              exit 0
+            fi
+
+            echo "The new release did not become healthy." >&2
+            docker compose logs --tail 80 app >&2 || true
+            if [ -n "$PREVIOUS_TAG" ] && [ "$PREVIOUS_TAG" != "$IMAGE_TAG" ]; then
+              echo "Rolling back to $PREVIOUS_TAG" >&2
+              write_env "$PREVIOUS_TAG"
+              docker compose up -d --remove-orphans --wait --wait-timeout 180 || true
+            fi
+            exit 1

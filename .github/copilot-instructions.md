@@ -18,5 +18,7 @@ Conventions:
 - Format and lint with Biome (`npm run check:fix`); don't add ESLint or Prettier.
 - Add tests with changes: Vitest for components (`src/**/*.test.tsx`) and the API (`tests/api`),
   Playwright for user flows (`tests/e2e`).
-- New app pages need their path in `deploy/nginx/toast.li.conf` and in `RESERVED_SHORT_IDS`.
+- New app pages go in `APP_PAGES` (`backend/src/appPages.ts`) and `src/main.tsx`; that list decides what is a
+  page and what is a short link, everywhere.
+- Schema changes are new numbered files in `backend/migrations/`. Deploys are described in `deploy/README.md`.
 - Commit messages follow Conventional Commits (`feat:`, `fix:`, `chore:` …), checked by commitlint.

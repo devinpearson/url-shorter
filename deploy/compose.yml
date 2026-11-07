@@ -1,0 +1,68 @@
+# Club Links (toast.li) on the Hetzner server, in ~/stacks/club-links. See deploy/README.md.
+#
+# Ansible (ansible/hetzner playbooks/configure-club-links.yml) writes secrets.env, which never
+# leaves the server: POSTGRES_PASSWORD and PGPASSWORD (the same value), SESSION_SECRET, the Auth0
+# credentials and the optional Resend settings. The GitHub workflow copies this file and writes
+# IMAGE_TAG and APP_PORT to the .env beside it on every deploy.
+name: club-links
+
+services:
+  # Not published: only the app reaches it, on this stack's network.
+  db:
+    image: postgres:16.15-alpine
+    restart: unless-stopped
+    labels:
+      autoheal: "true"
+    environment:
+      POSTGRES_DB: club_links
+      POSTGRES_USER: club_links
+    env_file:
+      - secrets.env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U club_links -d club_links"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  app:
+    image: ghcr.io/devinpearson/url-shorter:${IMAGE_TAG:-latest}
+    # The server's monitoring (ansible monitoring_required_containers) expects this name.
+    container_name: club-links
+    restart: unless-stopped
+    labels:
+      autoheal: "true"
+    environment:
+      NODE_ENV: production
+      PORT: "8090"
+      # pg reads these; PGPASSWORD comes from secrets.env.
+      PGHOST: db
+      PGDATABASE: club_links
+      PGUSER: club_links
+      ORIGIN: ${ORIGIN:-https://toast.li}
+      AUTH0_CALLBACK_URL: ${AUTH0_CALLBACK_URL:-https://toast.li/api/auth/callback}
+    env_file:
+      - secrets.env
+    # Loopback only: nginx on the host proxies toast.li; nothing else should reach the app.
+    ports:
+      - "127.0.0.1:${APP_PORT:-8090}:8090"
+    # /api/health also checks the database.
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8090/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    stop_grace_period: 15s
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
