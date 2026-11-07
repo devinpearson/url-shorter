@@ -54,7 +54,8 @@ export function apiErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const status = err.response?.status;
     const serverMessage = (err.response?.data as { message?: string } | undefined)?.message;
-    if (status === 409) return "That custom name is already taken. Please choose another.";
+    if (status === 409)
+      return serverMessage ?? "That name is already taken. Please choose another.";
     if (status === 401) return "Please log in to continue.";
     if (status === 429) return serverMessage ?? "Too many links at once. Please wait a minute.";
     if (status === 400 && serverMessage) return serverMessage;

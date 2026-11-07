@@ -27,8 +27,7 @@ import {
   takeReturnTo,
 } from "../lib/api";
 import { useAuth } from "../lib/auth";
-
-const SHORT_ID_PATTERN = /^[A-Za-z0-9_-]{3,32}$/;
+import { normalizeShortName, shortNameProblem, tidyShortNameInput } from "../lib/shortNames";
 
 const EXAMPLES = [
   {
@@ -103,15 +102,13 @@ export default function Landing() {
     if (user && returnTo && returnTo !== "/") navigate(returnTo, { replace: true });
   }, [user, navigate, create]);
 
-  const customIdError =
-    customShortId.trim() && !SHORT_ID_PATTERN.test(customShortId.trim())
-      ? "Use 3–32 letters, numbers, dashes or underscores."
-      : null;
+  const chosenName = normalizeShortName(customShortId);
+  const customIdError = shortNameProblem(chosenName);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!originalUrl.trim() || customIdError || submitting) return;
-    const link = { originalUrl, customShortId };
+    const link = { originalUrl, customShortId: chosenName };
     if (!user) {
       savePendingLink(link);
       startLogin("/");
@@ -149,8 +146,8 @@ export default function Landing() {
             Short links for your club meetings
           </h1>
           <p className="mt-4 text-base text-gray-600 sm:text-lg">
-            Turn long sign-up sheets, meeting links and guest forms into short names that are easy
-            to say aloud, print on a flyer or put on a slide.
+            Turn a long Zoom link, sign-up sheet or guest form into a short link that&apos;s easy to
+            read on a poster, type in and say aloud.
           </p>
         </div>
 
@@ -158,7 +155,7 @@ export default function Landing() {
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
             <div className="space-y-1.5">
               <label htmlFor="originalUrl" className="text-sm font-medium text-gray-700">
-                Link to shorten
+                Paste your long link
               </label>
               <Input
                 ref={urlInput}
@@ -166,39 +163,49 @@ export default function Landing() {
                 type="url"
                 inputMode="url"
                 autoComplete="url"
-                placeholder="https://docs.google.com/spreadsheets/d/…"
+                placeholder="https://us02web.zoom.us/j/…"
+                aria-describedby="originalUrl-help"
                 value={originalUrl}
                 onChange={(e) => setOriginalUrl(e.target.value)}
                 className="h-11 text-base"
                 required
               />
+              <p id="originalUrl-help" className="text-sm text-gray-500">
+                For example, your Zoom meeting invite link, a sign-up sheet or a guest form.
+              </p>
             </div>
 
             <div className="space-y-1.5">
               <label htmlFor="customShortId" className="text-sm font-medium text-gray-700">
-                Custom name <span className="font-normal text-gray-500">(optional)</span>
+                Choose a short name <span className="font-normal text-gray-500">(optional)</span>
               </label>
               <div className="border-input bg-background focus-within:ring-ring flex h-11 items-center rounded-md border focus-within:ring-2 focus-within:ring-offset-2">
-                <span className="text-muted-foreground max-w-[45%] shrink-0 truncate pl-3 text-sm">
+                <span className="max-w-[45%] shrink-0 truncate pl-3 text-base font-medium text-gray-700">
                   {host}/
                 </span>
                 <input
                   id="customShortId"
                   type="text"
-                  placeholder="club-roles"
+                  placeholder="sunrise-zoom"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={customShortId}
-                  onChange={(e) => setCustomShortId(e.target.value)}
+                  onChange={(e) => setCustomShortId(tidyShortNameInput(e.target.value))}
                   maxLength={32}
                   aria-invalid={Boolean(customIdError)}
                   aria-describedby="customShortId-help"
-                  className="text-foreground placeholder:text-muted-foreground h-full min-w-0 flex-1 bg-transparent pr-3 text-base focus:outline-none"
+                  className="text-foreground h-full min-w-0 flex-1 bg-transparent pr-3 text-base placeholder:text-gray-400 placeholder:italic focus:outline-none"
                 />
               </div>
               <p
                 id="customShortId-help"
                 className={customIdError ? "text-destructive text-sm" : "text-sm text-gray-500"}
               >
-                {customIdError ?? "Leave blank for a random name."}
+                {customIdError ??
+                  (chosenName
+                    ? `Your link will be ${host}/${chosenName}`
+                    : "Letters, numbers and dashes. Leave it blank and we'll pick an easy one, like brave-otter-47.")}
               </p>
             </div>
 
@@ -243,12 +250,12 @@ export default function Landing() {
               aria-live="polite"
             >
               <p className="text-sm font-medium text-gray-700">Your short link is ready</p>
-              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <a
                   href={shortLink(created.shortId)}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-primary min-w-0 flex-1 truncate font-mono text-base font-semibold hover:underline"
+                  className="text-primary min-w-0 flex-1 text-2xl font-bold tracking-tight break-all hover:underline sm:text-3xl"
                 >
                   {shortLinkLabel(created.shortId)}
                 </a>
@@ -263,6 +270,10 @@ export default function Landing() {
                   {copied ? "Copied" : "Copy"}
                 </Button>
               </div>
+              <p className="mt-2 text-sm text-gray-600">
+                Put this on your poster. Capital letters don&apos;t matter, so people can type it
+                however they like.
+              </p>
               <p className="mt-1 truncate text-sm text-gray-500">→ {created.originalUrl}</p>
               <div className="mt-3 flex flex-wrap gap-4 text-sm">
                 <Link to={`/stats/${created.shortId}`} className="text-primary hover:underline">
@@ -292,7 +303,7 @@ export default function Landing() {
                 <button
                   type="button"
                   onClick={() => applyExample(name)}
-                  className="text-primary focus-visible:ring-ring mt-4 self-start rounded font-mono text-sm hover:underline focus-visible:ring-2 focus-visible:outline-none"
+                  className="text-primary focus-visible:ring-ring mt-4 self-start rounded text-sm font-semibold hover:underline focus-visible:ring-2 focus-visible:outline-none"
                 >
                   {host}/{name}
                 </button>

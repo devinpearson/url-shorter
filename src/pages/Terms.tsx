@@ -42,9 +42,10 @@ export default function Terms() {
           page about your club or its meetings, events or members&apos; Toastmasters activities.
         </p>
         <p>
-          Custom names are given on a first-come, first-served basis and don&apos;t give you any
-          ownership of that name. Some names are reserved for the site itself. Links can be deleted
-          by you at any time.
+          Short names are given on a first-come, first-served basis and don&apos;t give you any
+          ownership of that name. They aren&apos;t case-sensitive, so &ldquo;Sunrise-Zoom&rdquo; and
+          &ldquo;sunrise-zoom&rdquo; are the same link. Some names are reserved for the site itself.
+          Links can be deleted by you at any time.
         </p>
       </LegalSection>
 

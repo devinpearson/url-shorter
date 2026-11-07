@@ -29,21 +29,45 @@ describe("Landing", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/club meetings/i);
   });
 
-  it("checks the custom name as you type", async () => {
+  it("checks the short name as you type", async () => {
     vi.mocked(api.fetchCurrentUser).mockResolvedValue(officer);
     const { user } = renderPage(<Landing />);
-    await user.type(screen.getByLabelText(/link to shorten/i), "https://example.com");
-    await user.type(screen.getByLabelText(/custom name/i), "bad name!");
+    await user.type(screen.getByLabelText(/paste your long link/i), "https://example.com");
+    await user.type(screen.getByLabelText(/short name/i), "bad name!");
 
-    expect(screen.getByText(/use 3–32 letters/i)).toBeInTheDocument();
+    expect(screen.getByText(/use only letters, numbers and dashes/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /shorten link/i })).toBeDisabled();
+  });
+
+  it("tidies a typed name into lowercase with dashes and previews the link", async () => {
+    vi.mocked(api.fetchCurrentUser).mockResolvedValue(officer);
+    const { user } = renderPage(<Landing />);
+    const name = await screen.findByLabelText(/short name/i);
+    await user.type(name, "Sunrise Speakers_Zoom");
+    expect(name).toHaveValue("sunrise-speakers-zoom");
+    expect(
+      screen.getByText(`Your link will be ${window.location.host}/sunrise-speakers-zoom`),
+    ).toBeInTheDocument();
+  });
+
+  it("sends the tidied name when shortening", async () => {
+    vi.mocked(api.fetchCurrentUser).mockResolvedValue(officer);
+    vi.mocked(api.createShortUrl).mockResolvedValue(created);
+    const { user } = renderPage(<Landing />);
+    await user.type(await screen.findByLabelText(/paste your long link/i), "https://zoom.us/j/1");
+    await user.type(screen.getByLabelText(/short name/i), "Club Roles-");
+    await user.click(screen.getByRole("button", { name: /shorten link/i }));
+    expect(api.createShortUrl).toHaveBeenCalledWith({
+      originalUrl: "https://zoom.us/j/1",
+      customShortId: "club-roles",
+    });
   });
 
   it("keeps the link and sends logged-out visitors to log in", async () => {
     vi.mocked(api.fetchCurrentUser).mockResolvedValue(null);
     const { user } = renderPage(<Landing />);
-    await user.type(await screen.findByLabelText(/link to shorten/i), "https://example.com/x");
-    await user.type(screen.getByLabelText(/custom name/i), "club-roles");
+    await user.type(await screen.findByLabelText(/paste your long link/i), "https://example.com/x");
+    await user.type(screen.getByLabelText(/short name/i), "club-roles");
     await user.click(screen.getByRole("button", { name: /log in and shorten/i }));
 
     expect(api.startLogin).toHaveBeenCalledWith("/");
@@ -69,7 +93,7 @@ describe("Landing", () => {
     vi.mocked(api.fetchCurrentUser).mockResolvedValue(officer);
     vi.mocked(api.createShortUrl).mockRejectedValue(new Error("boom"));
     const { user } = renderPage(<Landing />);
-    const input = await screen.findByLabelText(/link to shorten/i);
+    const input = await screen.findByLabelText(/paste your long link/i);
     await user.type(input, "https://example.com");
     await user.click(screen.getByRole("button", { name: /shorten link/i }));
 
@@ -84,10 +108,10 @@ describe("Landing", () => {
     await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/dashboard"));
   });
 
-  it("fills the custom name from an example", async () => {
+  it("fills the short name from an example", async () => {
     vi.mocked(api.fetchCurrentUser).mockResolvedValue(officer);
     const { user } = renderPage(<Landing />);
     await user.click(await screen.findByRole("button", { name: /\/visit-us$/ }));
-    expect(screen.getByLabelText(/custom name/i)).toHaveValue("visit-us");
+    expect(screen.getByLabelText(/short name/i)).toHaveValue("visit-us");
   });
 });

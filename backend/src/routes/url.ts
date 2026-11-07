@@ -1,18 +1,15 @@
-import { randomInt } from "node:crypto";
 import { type NextFunction, type Request, type Response, Router } from "express";
 import rateLimit from "express-rate-limit";
 import type { Pool } from "pg";
 import { isUniqueViolation } from "../db/pool";
 import { createUrl, deleteUrl, findUrl, listUrls } from "../db/urls";
 import { ensureAuth } from "../middleware/auth";
+import { generateShortName, isValidShortName, normalizeShortName } from "../shortNames";
 
-// Uses Node's crypto directly: nanoid v5 is ESM-only and this backend compiles to CommonJS.
-const ALPHANUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-const generateShortId = (length = 8) =>
-  Array.from({ length }, () => ALPHANUM[randomInt(ALPHANUM.length)]).join("");
+/** How many times to retry when a generated name is already taken (rare: 262k names). */
+const GENERATE_ATTEMPTS = 5;
 
-const SHORT_ID_PATTERN = /^[A-Za-z0-9_-]{3,32}$/;
-// Paths used by the frontend or API that a custom short ID must not shadow.
+// Paths used by the frontend or API that a custom short name must not shadow.
 const RESERVED_SHORT_IDS = new Set([
   "api",
   "login",
@@ -80,35 +77,44 @@ export function urlRouter(pool: Pool) {
         return;
       }
 
-      const custom = req.body?.customShortId;
-      let shortId: string;
-      if (typeof custom === "string" && custom.trim()) {
-        shortId = custom.trim();
-        if (!SHORT_ID_PATTERN.test(shortId)) {
+      const custom =
+        typeof req.body?.customShortId === "string"
+          ? normalizeShortName(req.body.customShortId)
+          : "";
+
+      if (custom) {
+        if (!isValidShortName(custom)) {
           res.status(400).json({
-            message: 'Short IDs must be 3–32 characters: letters, numbers, "_" or "-".',
+            message: "Names can use letters, numbers and dashes, and must be 3–32 characters long.",
           });
           return;
         }
-        if (RESERVED_SHORT_IDS.has(shortId.toLowerCase())) {
-          res.status(400).json({ message: "That short ID is reserved. Please choose another." });
+        if (RESERVED_SHORT_IDS.has(custom)) {
+          res.status(400).json({
+            message: "That name is used by the site itself. Please choose another.",
+          });
           return;
         }
-      } else {
-        shortId = generateShortId();
       }
 
-      try {
-        const url = await createUrl(pool, { shortId, originalUrl, userId: userId(req) });
-        res.status(201).json(url);
-      } catch (err) {
-        // The unique constraint on short_id is the source of truth, so concurrent creates are safe.
-        if (isUniqueViolation(err, "urls_short_id_key")) {
-          res.status(409).json({ message: "Short ID already in use." });
+      // A chosen name is tried once; a generated one is retried if it happens to be taken.
+      const attempts = custom ? 1 : GENERATE_ATTEMPTS;
+      for (let attempt = 1; attempt <= attempts; attempt++) {
+        const shortId = custom || generateShortName();
+        try {
+          const url = await createUrl(pool, { shortId, originalUrl, userId: userId(req) });
+          res.status(201).json(url);
           return;
+        } catch (err) {
+          // The unique constraint on short_id is the source of truth, so concurrent creates are safe.
+          if (!isUniqueViolation(err, "urls_short_id_key")) throw err;
         }
-        throw err;
       }
+      res.status(409).json({
+        message: custom
+          ? "That name is already taken. Try adding your club's name, like sunrise-zoom."
+          : "Couldn't find a free name. Please try again.",
+      });
     }),
   );
 
@@ -125,7 +131,7 @@ export function urlRouter(pool: Pool) {
   router.get(
     "/:shortId",
     asyncHandler(async (req, res) => {
-      const url = await findUrl(pool, req.params.shortId, userId(req));
+      const url = await findUrl(pool, normalizeShortName(req.params.shortId), userId(req));
       if (!url) {
         res.status(404).json({ message: "Not found" });
         return;
@@ -138,7 +144,7 @@ export function urlRouter(pool: Pool) {
   router.delete(
     "/:shortId",
     asyncHandler(async (req, res) => {
-      if (!(await deleteUrl(pool, req.params.shortId, userId(req)))) {
+      if (!(await deleteUrl(pool, normalizeShortName(req.params.shortId), userId(req)))) {
         res.status(404).json({ message: "Not found" });
         return;
       }

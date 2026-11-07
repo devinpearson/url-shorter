@@ -10,7 +10,7 @@ test.describe("public pages", () => {
       "Short links for your club meetings",
     );
     await expect(page.getByRole("button", { name: "Log in and shorten" })).toBeDisabled();
-    await page.getByLabel("Link to shorten").fill("https://example.com");
+    await page.getByLabel("Paste your long link").fill("https://example.com");
     await expect(page.getByRole("button", { name: "Log in and shorten" })).toBeEnabled();
   });
 

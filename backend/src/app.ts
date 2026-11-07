@@ -10,6 +10,7 @@ import { authRouter } from "./routes/auth";
 import { contactRouter } from "./routes/contact";
 import { testLoginRouter } from "./routes/testLogin";
 import { urlRouter } from "./routes/url";
+import { normalizeShortName } from "./shortNames";
 
 const PgSessionStore = connectPgSimple(session);
 
@@ -76,7 +77,8 @@ export function createApp(options: AppOptions) {
   // Catch-all for short links (must be after all /api routes)
   app.get("/:shortId", async (req, res) => {
     try {
-      const originalUrl = await recordClick(pool, req.params.shortId);
+      // Names are stored lowercase, so /Club-Roles and /club-roles are the same link.
+      const originalUrl = await recordClick(pool, normalizeShortName(req.params.shortId));
       if (originalUrl) {
         res.redirect(originalUrl);
         return;

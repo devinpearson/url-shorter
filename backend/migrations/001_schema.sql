@@ -13,8 +13,12 @@ CREATE TABLE users (
 
 CREATE TABLE urls (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  -- Case-sensitive: /Club and /club are different links.
-  short_id     text NOT NULL UNIQUE CHECK (short_id ~ '^[A-Za-z0-9_-]{3,32}$'),
+  -- Lowercase letters, numbers and single dashes, so names are easy to read off a poster
+  -- and type. The app lowercases incoming names, which makes links case-insensitive.
+  short_id     text NOT NULL UNIQUE CHECK (
+                 length(short_id) BETWEEN 3 AND 32
+                 AND short_id ~ '^[a-z0-9]+(-[a-z0-9]+)*$'
+               ),
   original_url text NOT NULL CHECK (length(original_url) <= 2048),
   user_id      uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
   clicks       integer NOT NULL DEFAULT 0,

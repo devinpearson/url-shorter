@@ -45,7 +45,7 @@ export default function Stats() {
               href={shortLink(url.shortId)}
               target="_blank"
               rel="noreferrer"
-              className="text-primary mb-2 block font-mono text-lg break-all hover:underline"
+              className="text-primary mb-2 block text-2xl font-bold break-all hover:underline"
             >
               {shortLinkLabel(url.shortId)}
             </a>
