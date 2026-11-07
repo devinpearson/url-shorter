@@ -5,8 +5,9 @@ https://code.visualstudio.com/docs/copilot/copilot-customization#_use-a-githubco
 
 Club Links (toast.li) is a link shortener for Toastmasters clubs.
 
-- **Backend**: Node.js, Express, TypeScript, MongoDB (Mongoose), Passport with Auth0. The app is built in
-  `backend/src/app.ts`; `backend/src/index.ts` only connects to MongoDB and listens.
+- **Backend**: Node.js, Express, TypeScript, PostgreSQL (`pg`, plain SQL), Passport with Auth0. The app is
+  built in `backend/src/app.ts`; `backend/src/index.ts` applies migrations and listens. Queries live in
+  `backend/src/db/`; schema changes are new numbered files in `backend/migrations/`, never edits to old ones.
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS v4 and shadcn-style components in `src/components/ui`.
 
 Conventions:

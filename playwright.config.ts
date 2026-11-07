@@ -17,13 +17,12 @@ export default defineConfig({
   },
   webServer: [
     {
-      // Real backend on an in-memory MongoDB, with a test-only login.
+      // Real backend on a throwaway Postgres (PGlite), with a test-only login.
       command: "npx tsx tests/e2e/api-server.ts",
       url: `http://127.0.0.1:${API_PORT}/api/ping`,
       env: { E2E_API_PORT: String(API_PORT) },
       reuseExistingServer: false,
-      // The first run downloads the MongoDB binary.
-      timeout: 180_000,
+      timeout: 60_000,
     },
     {
       // The production build, as it will be served.

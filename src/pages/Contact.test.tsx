@@ -32,7 +32,7 @@ describe("Contact", () => {
 
   it("prefills the logged-in officer's details", async () => {
     vi.mocked(api.fetchCurrentUser).mockResolvedValue({
-      _id: "u1",
+      id: "u1",
       displayName: "Ada",
       email: "ada@example.com",
     });

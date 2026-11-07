@@ -1,0 +1,4 @@
+{
+  // Skip everything in .gitignore (node_modules, test reports, coverage…).
+  "gitignore": true
+}

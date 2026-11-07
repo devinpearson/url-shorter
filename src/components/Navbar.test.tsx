@@ -30,7 +30,7 @@ describe("Navbar", () => {
   });
 
   it("offers Log out when logged in", async () => {
-    vi.mocked(api.fetchCurrentUser).mockResolvedValue({ _id: "u1", displayName: "Ada" });
+    vi.mocked(api.fetchCurrentUser).mockResolvedValue({ id: "u1", displayName: "Ada" });
     renderPage(<Navbar />);
     expect(await screen.findByRole("link", { name: "Log out" })).toHaveAttribute(
       "href",

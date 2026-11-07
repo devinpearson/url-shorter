@@ -30,13 +30,6 @@ jobs:
           node-version: 22
           cache: npm
 
-      # The API tests run on an in-memory MongoDB; keep its binary between runs.
-      - name: Cache MongoDB binary
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/mongodb-binaries
-          key: ${{ runner.os }}-mongodb-binaries-${{ hashFiles('package-lock.json') }}
-
       - name: Install dependencies
         run: npm ci
 
@@ -72,12 +65,6 @@ jobs:
         with:
           node-version: 22
           cache: npm
-
-      - name: Cache MongoDB binary
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/mongodb-binaries
-          key: ${{ runner.os }}-mongodb-binaries-${{ hashFiles('package-lock.json') }}
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
@@ -118,12 +105,6 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Cache MongoDB binary
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/mongodb-binaries
-          key: ${{ runner.os }}-mongodb-binaries-${{ hashFiles('package-lock.json') }}
-
       - name: Install dependencies
         run: npm ci
 
@@ -149,7 +130,7 @@ jobs:
       - name: Deploy
         uses: appleboy/ssh-action@v1
         env:
-          MONGO_URI: ${{ secrets.MONGO_URI }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
           ORIGIN: ${{ secrets.ORIGIN }}
           AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
@@ -162,7 +143,7 @@ jobs:
           username: root
           port: 22
           # `env` above only exists on the runner; `envs` forwards these names to the server.
-          envs: MONGO_URI,SESSION_SECRET,ORIGIN,AUTH0_CLIENT_ID,AUTH0_CLIENT_SECRET,AUTH0_DOMAIN,AUTH0_CALLBACK_URL
+          envs: DATABASE_URL,SESSION_SECRET,ORIGIN,AUTH0_CLIENT_ID,AUTH0_CLIENT_SECRET,AUTH0_DOMAIN,AUTH0_CALLBACK_URL
           script: |
             set -e
             cd url-shorter/
@@ -170,4 +151,6 @@ jobs:
             npm ci
             npm run build
             npm run build:backend
+            # Fails the deploy before reloading if a migration can't be applied.
+            node backend/dist/scripts/migrate.js
             NODE_ENV=production pm2 reload all --update-env

@@ -13,6 +13,7 @@ import {
   shortLinkLabel,
 } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { normalizeShortName, shortNameProblem, tidyShortNameInput } from "../lib/shortNames";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -34,8 +35,14 @@ export default function Dashboard() {
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
     if (!originalUrl.trim()) return;
+    const name = normalizeShortName(customShortId);
+    const problem = shortNameProblem(name);
+    if (problem) {
+      setError(problem);
+      return;
+    }
     try {
-      const created = await createShortUrl({ originalUrl, customShortId });
+      const created = await createShortUrl({ originalUrl, customShortId: name });
       setUrls((prev) => [created, ...prev]);
       setOriginalUrl("");
       setCustomShortId("");
@@ -68,19 +75,22 @@ export default function Dashboard() {
       <form onSubmit={handleCreate} className="mb-6 flex flex-col gap-2 sm:flex-row">
         <Input
           className="flex-1 text-base"
-          placeholder="Paste a long URL..."
+          placeholder="Paste your long link (e.g. Zoom)"
           value={originalUrl}
           onChange={(e) => setOriginalUrl(e.target.value)}
           type="url"
-          aria-label="Paste a long URL"
+          aria-label="Paste your long link"
         />
         <Input
           className="text-base sm:w-44"
-          placeholder="Custom name (optional)"
+          placeholder="Short name (optional)"
           value={customShortId}
-          onChange={(e) => setCustomShortId(e.target.value)}
+          onChange={(e) => setCustomShortId(tidyShortNameInput(e.target.value))}
           type="text"
-          aria-label="Custom name"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          aria-label="Short name (optional)"
           maxLength={32}
         />
         <Button type="submit">Shorten</Button>
@@ -90,13 +100,13 @@ export default function Dashboard() {
       )}
       <div className="space-y-4">
         {urls.map((url) => (
-          <Card key={url._id} className="flex items-center justify-between gap-4 p-4">
+          <Card key={url.id} className="flex items-center justify-between gap-4 p-4">
             <div className="min-w-0">
               <a
                 href={shortLink(url.shortId)}
                 target="_blank"
                 rel="noreferrer"
-                className="text-primary mb-1 block truncate font-mono text-base hover:underline"
+                className="text-primary mb-1 block truncate text-lg font-semibold hover:underline"
               >
                 {shortLinkLabel(url.shortId)}
               </a>

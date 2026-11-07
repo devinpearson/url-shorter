@@ -9,13 +9,14 @@ describe("short link API", () => {
     await api().post("/api/urls").send({ originalUrl: "https://example.com" }).expect(401);
   });
 
-  it("creates a link with a random 8-character name", async () => {
+  it("creates a link with a readable name like brave-otter-47", async () => {
     const agent = await loggedIn();
     const res = await agent
       .post("/api/urls")
       .send({ originalUrl: "https://example.com/signup" })
       .expect(201);
-    expect(res.body.shortId).toMatch(/^[A-Za-z0-9]{8}$/);
+    // Two lowercase words and two digits with no 0 or 1, so nothing can be misread.
+    expect(res.body.shortId).toMatch(/^[a-z]+-[a-z]+-[2-9]{2}$/);
     expect(res.body.originalUrl).toBe("https://example.com/signup");
     expect(res.body.clicks).toBe(0);
   });
@@ -37,7 +38,20 @@ describe("short link API", () => {
     },
   );
 
-  it.each([["ab"], ["has space"], ["a/b"], ["x".repeat(33)]])(
+  it.each([
+    ["  Club Roles  ", "club-roles"],
+    ["Sunrise_Speakers", "sunrise-speakers"],
+    ["ZOOM--Link-", "zoom-link"],
+  ])("tidies the chosen name %j into %j", async (customShortId, expected) => {
+    const agent = await loggedIn();
+    const res = await agent
+      .post("/api/urls")
+      .send({ originalUrl: "https://example.com", customShortId })
+      .expect(201);
+    expect(res.body.shortId).toBe(expected);
+  });
+
+  it.each([["ab"], ["a/b"], ["café"], ["x".repeat(33)]])(
     "rejects %j as a custom name",
     async (customShortId) => {
       const agent = await loggedIn();
@@ -57,7 +71,7 @@ describe("short link API", () => {
         .post("/api/urls")
         .send({ originalUrl: "https://example.com", customShortId })
         .expect(400);
-      expect(res.body.message).toMatch(/reserved/);
+      expect(res.body.message).toMatch(/used by the site itself/);
     },
   );
 
@@ -108,6 +122,24 @@ describe("short link redirects", () => {
 
     const stats = await agent.get("/api/urls/go-now").expect(200);
     expect(stats.body.clicks).toBe(2);
+  });
+
+  it("treats names as case-insensitive", async () => {
+    const agent = await loggedIn();
+    await agent
+      .post("/api/urls")
+      .send({ originalUrl: "https://example.com/zoom", customShortId: "Sunrise-Zoom" });
+
+    // However it's typed from the poster, it's the same link.
+    for (const path of ["/sunrise-zoom", "/Sunrise-Zoom", "/SUNRISE-ZOOM"]) {
+      const res = await api().get(path).expect(302);
+      expect(res.headers.location).toBe("https://example.com/zoom");
+    }
+    await agent
+      .post("/api/urls")
+      .send({ originalUrl: "https://example.com/other", customShortId: "SUNRISE-zoom" })
+      .expect(409);
+    await agent.get("/api/urls/Sunrise-ZOOM").expect(200);
   });
 
   it("returns 404 for an unknown name", async () => {

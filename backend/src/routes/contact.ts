@@ -1,6 +1,11 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import ContactMessage, { type ContactTopic } from "../models/ContactMessage";
+import type { Pool } from "pg";
+import {
+  type ContactTopic,
+  markContactMessageEmailed,
+  saveContactMessage,
+} from "../db/contactMessages";
 
 const TOPICS: Record<ContactTopic, string> = {
   question: "Question",
@@ -54,7 +59,7 @@ ${msg.link ? `<p><strong>Link:</strong> ${escapeHtml(msg.link)}</p>` : ""}
 }
 
 /** Builds the contact router. Each call gets its own rate limiter, so tests can start fresh. */
-export function contactRouter() {
+export function contactRouter(pool: Pool) {
   const router = Router();
 
   const contactLimiter = rateLimit({
@@ -87,32 +92,31 @@ export function contactRouter() {
         res.status(400).json({ message: "Please enter a valid email address." });
         return;
       }
-      if (!(topic in TOPICS)) {
+      if (!Object.hasOwn(TOPICS, topic)) {
         res.status(400).json({ message: "Please choose what your message is about." });
         return;
       }
 
       // Save first so nothing is lost if email delivery fails.
-      const saved = await ContactMessage.create({
+      const id = await saveContactMessage(pool, {
         name,
         email,
         topic,
         link,
         message,
-        user: req.user?._id,
+        userId: req.user?.id,
       });
 
       try {
         if (await sendEmail({ name, email, topic, link, message })) {
-          saved.emailed = true;
-          await saved.save();
+          await markContactMessageEmailed(pool, id);
         } else {
           console.warn(
-            `Contact message ${saved.id} saved; RESEND_API_KEY not set, so no email was sent.`,
+            `Contact message ${id} saved; RESEND_API_KEY not set, so no email was sent.`,
           );
         }
       } catch (err) {
-        console.error(`Contact message ${saved.id} saved but the email failed:`, err);
+        console.error(`Contact message ${id} saved but the email failed:`, err);
       }
 
       res.status(201).json({ message: "Thanks, your message has been sent." });

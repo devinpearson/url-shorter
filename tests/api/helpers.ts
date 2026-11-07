@@ -1,39 +1,36 @@
-import { MongoMemoryServer } from "mongodb-memory-server";
-import mongoose from "mongoose";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach } from "vitest";
 import { createApp } from "../../backend/src/app";
+import { startTestPostgres } from "../support/postgres";
+
+type TestPostgres = Awaited<ReturnType<typeof startTestPostgres>>;
 
 /**
- * Starts an in-memory MongoDB for one test file, and builds a fresh Express app and empties
- * the database before each test. Use `api()` for anonymous requests and `loggedIn()` for an
- * agent that keeps a logged-in session cookie.
+ * Starts a throwaway Postgres for one test file, and builds a fresh Express app and empties
+ * the tables before each test. Use `api()` for anonymous requests, `loggedIn()` for an agent
+ * that keeps a logged-in session cookie, and `db()` to query the database directly.
  */
 export function setupApi() {
-  let mongo: MongoMemoryServer;
+  let pg: TestPostgres;
   let app: ReturnType<typeof createApp>;
 
   beforeAll(async () => {
-    mongo = await MongoMemoryServer.create();
-    await mongoose.connect(mongo.getUri("club-links-test"));
+    pg = await startTestPostgres();
   });
 
   beforeEach(async () => {
+    await pg.reset();
     // A fresh app per test also resets the rate limiters.
-    app = createApp({ sessionSecret: "test-secret", enableTestLogin: true });
-    const { collections } = mongoose.connection;
-    await Promise.all(Object.values(collections).map((c) => c.deleteMany({})));
-    // Unique indexes (shortId, email) must exist for duplicate checks.
-    await Promise.all(mongoose.modelNames().map((name) => mongoose.model(name).syncIndexes()));
+    app = createApp({ pool: pg.pool, sessionSecret: "test-secret", enableTestLogin: true });
   });
 
   afterAll(async () => {
-    await mongoose.disconnect();
-    await mongo?.stop();
+    await pg?.stop();
   });
 
   return {
     api: () => request(app),
+    db: () => pg.pool,
     async loggedIn(user: { id?: string; displayName?: string; email?: string } = {}) {
       const agent = request.agent(app);
       await agent.post("/api/test/login").send(user).expect(200);

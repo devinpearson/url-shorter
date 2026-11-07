@@ -1,8 +1,7 @@
-import mongoose from "mongoose";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { setupApi } from "./helpers";
 
-const { api, loggedIn } = setupApi();
+const { api, db, loggedIn } = setupApi();
 
 describe("auth API", () => {
   it("answers /me with null when logged out, so browsers don't log an error", async () => {
@@ -13,7 +12,7 @@ describe("auth API", () => {
   it("returns only the user's id, name and email when logged in", async () => {
     const agent = await loggedIn({ displayName: "Ada", email: "ada@example.com" });
     const res = await agent.get("/api/auth/me").expect(200);
-    expect(Object.keys(res.body).sort()).toEqual(["_id", "displayName", "email"]);
+    expect(Object.keys(res.body).sort()).toEqual(["displayName", "email", "id"]);
     expect(res.body.displayName).toBe("Ada");
   });
 
@@ -33,7 +32,8 @@ describe("auth API", () => {
 });
 
 describe("contact API", () => {
-  const messages = () => mongoose.connection.collection("contactmessages");
+  const messages = async () =>
+    (await db().query("SELECT * FROM contact_messages ORDER BY created_at, id")).rows;
   const valid = { name: "Ada", email: "ada@example.com", topic: "question", message: "Hello" };
 
   afterEach(() => {
@@ -43,7 +43,7 @@ describe("contact API", () => {
 
   it("saves a valid message", async () => {
     await api().post("/api/contact").send(valid).expect(201);
-    const [saved] = await messages().find().toArray();
+    const [saved] = await messages();
     expect(saved).toMatchObject({ name: "Ada", topic: "question", emailed: false });
   });
 
@@ -56,18 +56,19 @@ describe("contact API", () => {
       .post("/api/contact")
       .send({ ...valid, link: "toast.li/ignored" })
       .expect(201);
-    const saved = await messages().find().sort({ createdAt: 1 }).toArray();
-    expect(saved.map((m) => m.link)).toEqual(["toast.li/bad", undefined]);
+    const saved = await messages();
+    expect(saved.map((m) => m.link)).toEqual(["toast.li/bad", null]);
   });
 
   it.each([
     [{ ...valid, name: "" }, /name, email and message/],
     [{ ...valid, email: "nope" }, /valid email/],
     [{ ...valid, topic: "spam" }, /what your message is about/],
+    [{ ...valid, topic: "constructor" }, /what your message is about/],
   ])("rejects %j", async (body, message) => {
     const res = await api().post("/api/contact").send(body).expect(400);
     expect(res.body.message).toMatch(message);
-    expect(await messages().countDocuments()).toBe(0);
+    expect(await messages()).toHaveLength(0);
   });
 
   it("allows 5 messages an hour from one address", async () => {
@@ -81,7 +82,7 @@ describe("contact API", () => {
       .post("/api/contact")
       .send({ ...valid, website: "http://spam.example" })
       .expect(202);
-    expect(await messages().countDocuments()).toBe(0);
+    expect(await messages()).toHaveLength(0);
   });
 
   it("emails through Resend when configured, escaping HTML", async () => {
@@ -102,7 +103,7 @@ describe("contact API", () => {
     expect(body).toMatchObject({ to: "owner@toast.li", reply_to: "ada@example.com" });
     expect(body.html).toContain("&lt;script&gt;");
     expect(body.html).not.toContain("<script>");
-    const [saved] = await messages().find().toArray();
+    const [saved] = await messages();
     expect(saved.emailed).toBe(true);
   });
 
@@ -112,7 +113,7 @@ describe("contact API", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await api().post("/api/contact").send(valid).expect(201);
-    const [saved] = await messages().find().toArray();
+    const [saved] = await messages();
     expect(saved.emailed).toBe(false);
   });
 });

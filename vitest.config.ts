@@ -19,8 +19,8 @@ export default defineConfig({
           name: "api",
           environment: "node",
           include: ["tests/api/**/*.test.ts"],
-          // Each file starts its own in-memory MongoDB; the first run downloads the binary.
-          hookTimeout: 120_000,
+          // Each file starts its own throwaway Postgres (PGlite).
+          hookTimeout: 60_000,
           // passport-auth0 refuses to start without these; tests never reach Auth0.
           env: {
             AUTH0_DOMAIN: "club-links-test.auth0.invalid",
