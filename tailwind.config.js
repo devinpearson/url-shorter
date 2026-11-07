@@ -10,7 +10,7 @@ export default {
         background: "hsl(0 0% 100%)",
         foreground: "hsl(0 0% 0%)",
         primary: {
-          DEFAULT: "hsl(239 84% 67%)",
+          DEFAULT: "hsl(243 75% 59%)", // indigo-600: 6.3:1 on white (WCAG AA)
           foreground: "hsl(0 0% 100%)",
         },
         secondary: {

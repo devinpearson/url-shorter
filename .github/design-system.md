@@ -1,10 +1,8 @@
-Here is the **Markdown version** of the ShadCN UI Design System profile:
-
----
-
 # ShadCN UI Design System
 
-> A modern, accessible, and utility-first design system using Tailwind CSS with Radix UI components. This design profile outlines visual patterns and structural rules for use in design replication and component generation with tools like Copilot.
+> A modern, accessible, and utility-first design system using Tailwind CSS with Radix UI components.
+> This design profile outlines visual patterns and structural rules for use in design replication and
+> component generation with tools like Copilot.
 
 ---
 
@@ -12,7 +10,8 @@ Here is the **Markdown version** of the ShadCN UI Design System profile:
 
 - **Name**: ShadCN UI Design System
 - **Version**: 1.0.0
-- **Description**: A clean, component-driven system for modern web apps. Prioritizes accessibility, composition, and developer experience.
+- **Description**: A clean, component-driven system for modern web apps. Prioritizes accessibility,
+  composition, and developer experience.
 - **Philosophy**: Accessible, composable, consistent, and theme-ready with Tailwind + Radix UI.
 
 ---
@@ -35,7 +34,7 @@ Base:
   - foreground: #000000
 
 Accent:
-  - primary: #6366f1
+  - primary: #4f46e5 (indigo-600; #6366f1 is below WCAG AA contrast on white)
   - primaryForeground: #ffffff
   - secondary: #f4f4f5
   - secondaryForeground: #18181b
