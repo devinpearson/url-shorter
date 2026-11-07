@@ -1,8 +1,10 @@
 import { randomInt } from "node:crypto";
 import { type NextFunction, type Request, type Response, Router } from "express";
 import rateLimit from "express-rate-limit";
+import type { Pool } from "pg";
+import { isUniqueViolation } from "../db/pool";
+import { createUrl, deleteUrl, findUrl, listUrls } from "../db/urls";
 import { ensureAuth } from "../middleware/auth";
-import Url from "../models/Url";
 
 // Uses Node's crypto directly: nanoid v5 is ESM-only and this backend compiles to CommonJS.
 const ALPHANUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -37,10 +39,6 @@ const asyncHandler = (fn: AsyncHandler) => (req: Request, res: Response, next: N
   fn(req, res, next).catch(next);
 };
 
-function isDuplicateKeyError(err: unknown): boolean {
-  return typeof err === "object" && err !== null && (err as { code?: number }).code === 11000;
-}
-
 function parseHttpUrl(value: unknown): string | null {
   if (typeof value !== "string" || value.length > 2048) return null;
   try {
@@ -54,11 +52,11 @@ function parseHttpUrl(value: unknown): string | null {
 /** The logged-in user's id. Every route below runs after ensureAuth, so req.user is set. */
 function userId(req: Request) {
   if (!req.user) throw new Error("ensureAuth must run before this route");
-  return req.user._id;
+  return req.user.id;
 }
 
 /** Builds the short link router. Each call gets its own rate limiter, so tests can start fresh. */
-export function urlRouter() {
+export function urlRouter(pool: Pool) {
   const router = Router();
 
   const createLimiter = rateLimit({
@@ -101,11 +99,11 @@ export function urlRouter() {
       }
 
       try {
-        const url = await Url.create({ shortId, originalUrl, user: userId(req) });
+        const url = await createUrl(pool, { shortId, originalUrl, userId: userId(req) });
         res.status(201).json(url);
       } catch (err) {
-        // The unique index on shortId is the source of truth, so concurrent creates are safe.
-        if (isDuplicateKeyError(err)) {
+        // The unique constraint on short_id is the source of truth, so concurrent creates are safe.
+        if (isUniqueViolation(err, "urls_short_id_key")) {
           res.status(409).json({ message: "Short ID already in use." });
           return;
         }
@@ -118,7 +116,7 @@ export function urlRouter() {
   router.get(
     "/",
     asyncHandler(async (req, res) => {
-      const urls = await Url.find({ user: userId(req) }).sort({ createdAt: -1 });
+      const urls = await listUrls(pool, userId(req));
       res.json(urls);
     }),
   );
@@ -127,7 +125,7 @@ export function urlRouter() {
   router.get(
     "/:shortId",
     asyncHandler(async (req, res) => {
-      const url = await Url.findOne({ shortId: req.params.shortId, user: userId(req) });
+      const url = await findUrl(pool, req.params.shortId, userId(req));
       if (!url) {
         res.status(404).json({ message: "Not found" });
         return;
@@ -140,8 +138,7 @@ export function urlRouter() {
   router.delete(
     "/:shortId",
     asyncHandler(async (req, res) => {
-      const result = await Url.deleteOne({ shortId: req.params.shortId, user: userId(req) });
-      if (result.deletedCount === 0) {
+      if (!(await deleteUrl(pool, req.params.shortId, userId(req)))) {
         res.status(404).json({ message: "Not found" });
         return;
       }

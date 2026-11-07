@@ -11,9 +11,9 @@ vi.mock("../lib/api", async (importOriginal) => ({
   startLogin: vi.fn(),
 }));
 
-const officer = { _id: "u1", displayName: "Ada", email: "ada@example.com" };
+const officer = { id: "u1", displayName: "Ada", email: "ada@example.com" };
 const created = {
-  _id: "l1",
+  id: "l1",
   shortId: "club-roles",
   originalUrl: "https://example.com/signup",
   clicks: 0,

@@ -4,7 +4,7 @@ import axios from "axios";
 export const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
 export interface ShortUrl {
-  _id: string;
+  id: string;
   shortId: string;
   originalUrl: string;
   clicks: number;
@@ -17,9 +17,9 @@ export interface NewShortUrl {
 }
 
 export interface CurrentUser {
-  _id: string;
+  id: string;
   displayName: string;
-  email?: string;
+  email?: string | null;
 }
 
 export async function fetchCurrentUser(): Promise<CurrentUser | null> {

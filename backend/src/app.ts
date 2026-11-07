@@ -1,18 +1,21 @@
-import MongoStore from "connect-mongo";
+import connectPgSimple from "connect-pg-simple";
 import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
 import session from "express-session";
 import helmet from "helmet";
-import mongoose from "mongoose";
-import passport from "passport";
-import "./passport"; // Passport strategy and session (de)serialisation
-import Url from "./models/Url";
-import authRoutes from "./routes/auth";
+import type { Pool } from "pg";
+import { recordClick } from "./db/urls";
+import { createPassport } from "./passport";
+import { authRouter } from "./routes/auth";
 import { contactRouter } from "./routes/contact";
-import testLoginRoutes from "./routes/testLogin";
+import { testLoginRouter } from "./routes/testLogin";
 import { urlRouter } from "./routes/url";
 
+const PgSessionStore = connectPgSimple(session);
+
 export interface AppOptions {
+  /** Postgres pool for data and sessions; the caller runs migrations and closes it. */
+  pool: Pool;
   sessionSecret: string;
   origin?: string;
   /** Send the session cookie only over HTTPS. */
@@ -24,14 +27,13 @@ export interface AppOptions {
   enableTestLogin?: boolean;
 }
 
-/**
- * Builds the Express app without opening a port, so tests can use it. Sessions are stored
- * through Mongoose's connection, which the caller opens with mongoose.connect().
- */
+/** Builds the Express app without opening a port, so tests can use it. */
 export function createApp(options: AppOptions) {
   if (options.enableTestLogin && process.env.NODE_ENV === "production") {
     throw new Error("Test login must never be enabled in production");
   }
+  const { pool } = options;
+  const passport = createPassport(pool);
 
   const app = express();
 
@@ -48,11 +50,8 @@ export function createApp(options: AppOptions) {
       secret: options.sessionSecret,
       resave: false,
       saveUninitialized: false,
-      store: MongoStore.create({
-        // Reuse Mongoose's connection pool instead of opening a second one.
-        clientPromise: mongoose.connection.asPromise().then((conn) => conn.getClient()),
-        ttl: 14 * 24 * 60 * 60,
-      }),
+      // The session table is created by backend/migrations, not at runtime.
+      store: new PgSessionStore({ pool, tableName: "session", ttl: 14 * 24 * 60 * 60 }),
       cookie: {
         httpOnly: true,
         sameSite: "lax",
@@ -69,25 +68,22 @@ export function createApp(options: AppOptions) {
     res.json({ message: "pong" });
   });
 
-  app.use("/api/auth", authRoutes);
-  app.use("/api/urls", urlRouter());
-  app.use("/api/contact", contactRouter());
-  if (options.enableTestLogin) app.use("/api/test", testLoginRoutes);
+  app.use("/api/auth", authRouter(passport));
+  app.use("/api/urls", urlRouter(pool));
+  app.use("/api/contact", contactRouter(pool));
+  if (options.enableTestLogin) app.use("/api/test", testLoginRouter(pool));
 
   // Catch-all for short links (must be after all /api routes)
   app.get("/:shortId", async (req, res) => {
     try {
-      const url = await Url.findOneAndUpdate(
-        { shortId: req.params.shortId },
-        { $inc: { clicks: 1 } },
-        { new: true },
-      );
-      if (url) {
-        res.redirect(url.originalUrl);
+      const originalUrl = await recordClick(pool, req.params.shortId);
+      if (originalUrl) {
+        res.redirect(originalUrl);
         return;
       }
       res.status(404).send("Short URL not found");
-    } catch {
+    } catch (err) {
+      console.error(err);
       res.status(500).send("Server error");
     }
   });

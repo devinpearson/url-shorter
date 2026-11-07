@@ -1,42 +1,50 @@
-import passport from "passport";
+import { Passport } from "passport";
 import { Strategy as Auth0Strategy } from "passport-auth0";
-import User, { type IUser } from "./models/User";
+import type { Pool } from "pg";
+import { findOrCreateUser, findUserById } from "./db/users";
 
-passport.serializeUser((user, done) => {
-  done(null, String(user._id));
-});
+/**
+ * A Passport instance for one app: Auth0 login, with users stored in Postgres and only
+ * the user id kept in the session. A separate instance per app keeps tests independent.
+ */
+export function createPassport(pool: Pool) {
+  const passport = new Passport();
 
-passport.deserializeUser(async (id: string, done) => {
-  try {
-    const user = await User.findById(id).exec();
-    done(null, user as IUser | null);
-  } catch (err) {
-    done(err, undefined);
-  }
-});
+  passport.serializeUser((user, done) => {
+    done(null, user.id);
+  });
 
-passport.use(
-  new Auth0Strategy(
-    {
-      domain: process.env.AUTH0_DOMAIN || "",
-      clientID: process.env.AUTH0_CLIENT_ID || "",
-      clientSecret: process.env.AUTH0_CLIENT_SECRET || "",
-      callbackURL: process.env.AUTH0_CALLBACK_URL || "",
-    },
-    async (_accessToken, _refreshToken, _extraParams, profile, done) => {
-      try {
-        let user = await User.findOne({ googleId: profile.id });
-        if (!user) {
-          user = await User.create({
-            googleId: profile.id,
+  passport.deserializeUser(async (id: string, done) => {
+    try {
+      // A user deleted since logging in is simply logged out.
+      done(null, (await findUserById(pool, id)) ?? false);
+    } catch (err) {
+      done(err);
+    }
+  });
+
+  passport.use(
+    new Auth0Strategy(
+      {
+        domain: process.env.AUTH0_DOMAIN || "",
+        clientID: process.env.AUTH0_CLIENT_ID || "",
+        clientSecret: process.env.AUTH0_CLIENT_SECRET || "",
+        callbackURL: process.env.AUTH0_CALLBACK_URL || "",
+      },
+      async (_accessToken, _refreshToken, _extraParams, profile, done) => {
+        try {
+          const user = await findOrCreateUser(pool, {
+            auth0Id: profile.id,
             displayName: profile.displayName,
-            email: profile.emails?.[0]?.value || undefined,
+            email: profile.emails?.[0]?.value,
           });
+          done(null, user);
+        } catch (err) {
+          done(err as Error);
         }
-        return done(null, user as IUser);
-      } catch (err) {
-        return done(err, undefined);
-      }
-    },
-  ),
-);
+      },
+    ),
+  );
+
+  return passport;
+}

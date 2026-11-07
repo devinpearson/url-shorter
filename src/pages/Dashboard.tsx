@@ -90,7 +90,7 @@ export default function Dashboard() {
       )}
       <div className="space-y-4">
         {urls.map((url) => (
-          <Card key={url._id} className="flex items-center justify-between gap-4 p-4">
+          <Card key={url.id} className="flex items-center justify-between gap-4 p-4">
             <div className="min-w-0">
               <a
                 href={shortLink(url.shortId)}
