@@ -41,6 +41,7 @@ export default defineConfig({
         "src/main.tsx",
         "backend/src/index.ts",
         "backend/src/env.ts",
+        "backend/src/scripts/**",
         "backend/src/types/**",
       ],
       reporter: ["text-summary", "json-summary", "lcov"],
