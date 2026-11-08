@@ -14,14 +14,22 @@ writeFileSync(path.join(dist, "assets", "index-abc123.js"), "console.log('app')"
 const { api, loggedIn } = setupApi({ staticDir: dist });
 
 describe("one container serving the app, API and short links", () => {
-  it.each(["/", "/dashboard", "/About", "/TERMS", "/login?next=/dashboard", "/stats/club-roles"])(
-    "serves the app for %s",
-    async (route) => {
-      const res = await api().get(route).expect(200);
-      expect(res.text).toContain("Club Links app");
-      expect(res.headers["cache-control"]).toBe("no-cache");
-    },
-  );
+  it.each([
+    "/",
+    "/dashboard",
+    "/About",
+    "/TERMS",
+    "/login?next=/dashboard",
+    "/stats/club-roles",
+    "/clubs",
+    "/clubs/sunrise",
+    "/join/AbC-123",
+    "/C/sunrise",
+  ])("serves the app for %s", async (route) => {
+    const res = await api().get(route).expect(200);
+    expect(res.text).toContain("Club Links app");
+    expect(res.headers["cache-control"]).toBe("no-cache");
+  });
 
   it("serves static files, caching hashed assets for a year", async () => {
     const icon = await api().get("/favicon.svg").expect(200);

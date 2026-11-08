@@ -8,7 +8,9 @@ vi.mock("../lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/api")>()),
   fetchCurrentUser: vi.fn(),
   fetchLink: vi.fn(),
+  fetchClubs: vi.fn(),
   updateDestination: vi.fn(),
+  updateLink: vi.fn(),
   deleteLink: vi.fn(),
 }));
 
@@ -32,6 +34,7 @@ const renderStats = () =>
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(api.fetchCurrentUser).mockResolvedValue(officer);
+  vi.mocked(api.fetchClubs).mockResolvedValue([]);
 });
 
 describe("link page", () => {
@@ -86,5 +89,48 @@ describe("link page", () => {
     await user.click(screen.getByRole("button", { name: /delete this link/i }));
     await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/dashboard"));
     expect(api.deleteLink).toHaveBeenCalledWith("sunrise-zoom");
+  });
+
+  it("hands the link to a club and lists it on the club page", async () => {
+    vi.mocked(api.fetchLink).mockResolvedValue(link());
+    vi.mocked(api.fetchClubs).mockResolvedValue([
+      {
+        id: "c1",
+        slug: "sunrise-speakers",
+        name: "Sunrise Speakers",
+        memberCount: 2,
+        linkCount: 0,
+      },
+    ]);
+    vi.mocked(api.updateLink).mockResolvedValue({
+      ...link(),
+      title: "Weekly meeting",
+      clubId: "c1",
+      onClubPage: true,
+    });
+    const { user } = renderStats();
+
+    await user.type(await screen.findByLabelText("Label (optional)"), "Weekly meeting");
+    expect(screen.queryByLabelText(/Show on the club page/)).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Who looks after it"), "c1");
+    await user.click(screen.getByLabelText(/Show on the club page/));
+    await user.click(screen.getByRole("button", { name: "Save details" }));
+
+    expect(api.updateLink).toHaveBeenCalledWith("sunrise-zoom", {
+      title: "Weekly meeting",
+      clubId: "c1",
+      onClubPage: true,
+    });
+    expect(await screen.findByText("Saved.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save details" })).toBeDisabled();
+  });
+
+  it("suggests setting up a club when you have none", async () => {
+    vi.mocked(api.fetchLink).mockResolvedValue(link());
+    renderStats();
+    expect(await screen.findByRole("link", { name: "Set up your club" })).toHaveAttribute(
+      "href",
+      "/clubs",
+    );
   });
 });

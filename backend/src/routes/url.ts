@@ -1,18 +1,21 @@
-import { type NextFunction, type Request, type Response, Router } from "express";
+import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import type { Pool } from "pg";
 import { APP_PAGES } from "../appPages";
+import { isMember } from "../db/clubs";
 import { isUniqueViolation } from "../db/pool";
 import {
   createUrl,
   deleteUrl,
   findUrl,
   getUrlStats,
+  type LinkChanges,
   listUrls,
-  updateDestination,
+  updateLink,
 } from "../db/urls";
 import { ensureAuth } from "../middleware/auth";
 import { generateShortName, isValidShortName, normalizeShortName } from "../shortNames";
+import { asyncHandler, isUuid, userId } from "./common";
 
 /** How many times to retry when a generated name is already taken (rare: 262k names). */
 const GENERATE_ATTEMPTS = 5;
@@ -33,12 +36,6 @@ const RESERVED_SHORT_IDS = new Set<string>([
   "index.html",
 ]);
 
-// Express 4 does not catch errors from async handlers; forward them to `next`.
-type AsyncHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>;
-const asyncHandler = (fn: AsyncHandler) => (req: Request, res: Response, next: NextFunction) => {
-  fn(req, res, next).catch(next);
-};
-
 function parseHttpUrl(value: unknown): string | null {
   if (typeof value !== "string" || value.length > 2048) return null;
   try {
@@ -49,10 +46,34 @@ function parseHttpUrl(value: unknown): string | null {
   }
 }
 
-/** The logged-in user's id. Every route below runs after ensureAuth, so req.user is set. */
-function userId(req: Request) {
-  if (!req.user) throw new Error("ensureAuth must run before this route");
-  return req.user.id;
+const BAD_URL = { message: "Please enter a valid http:// or https:// URL." };
+const NOT_A_MEMBER = { message: "You're not an officer of that club." };
+
+/**
+ * Reads the fields of a link edit. Returns the changes, or a message for the first field
+ * that isn't valid.
+ */
+function parseLinkChanges(body: Record<string, unknown>): LinkChanges | { error: string } {
+  const changes: LinkChanges = {};
+  if (body.originalUrl !== undefined) {
+    const originalUrl = parseHttpUrl(body.originalUrl);
+    if (!originalUrl) return { error: BAD_URL.message };
+    changes.originalUrl = originalUrl;
+  }
+  if (body.title !== undefined) {
+    if (body.title !== null && (typeof body.title !== "string" || body.title.trim().length > 100))
+      return { error: "Keep the label to 100 characters or fewer." };
+    changes.title = body.title;
+  }
+  if (body.clubId !== undefined) {
+    if (body.clubId !== null && !isUuid(body.clubId)) return { error: "Unknown club." };
+    changes.clubId = body.clubId;
+  }
+  if (body.onClubPage !== undefined) {
+    if (typeof body.onClubPage !== "boolean") return { error: "onClubPage must be true or false." };
+    changes.onClubPage = body.onClubPage;
+  }
+  return changes;
 }
 
 /** Builds the short link router. Each call gets its own rate limiter, so tests can start fresh. */
@@ -76,8 +97,17 @@ export function urlRouter(pool: Pool) {
     asyncHandler(async (req, res) => {
       const originalUrl = parseHttpUrl(req.body?.originalUrl);
       if (!originalUrl) {
-        res.status(400).json({ message: "Please enter a valid http:// or https:// URL." });
+        res.status(400).json(BAD_URL);
         return;
+      }
+
+      // Made for a club: any of its officers can then look after it.
+      const clubId: unknown = req.body?.clubId ?? null;
+      if (clubId !== null) {
+        if (!isUuid(clubId) || !(await isMember(pool, clubId, userId(req)))) {
+          res.status(403).json(NOT_A_MEMBER);
+          return;
+        }
       }
 
       const custom =
@@ -105,7 +135,7 @@ export function urlRouter(pool: Pool) {
       for (let attempt = 1; attempt <= attempts; attempt++) {
         const shortId = custom || generateShortName();
         try {
-          const url = await createUrl(pool, { shortId, originalUrl, userId: userId(req) });
+          const url = await createUrl(pool, { shortId, originalUrl, userId: userId(req), clubId });
           res.status(201).json(url);
           return;
         } catch (err) {
@@ -121,7 +151,7 @@ export function urlRouter(pool: Pool) {
     }),
   );
 
-  // Get all URLs for the logged-in user, newest first
+  // The logged-in user's links and their clubs' links, newest first
   router.get(
     "/",
     asyncHandler(async (req, res) => {
@@ -143,25 +173,27 @@ export function urlRouter(pool: Pool) {
     }),
   );
 
-  // Point a link somewhere new (a new Zoom link) without changing its name or the poster
+  // Change a link: where it goes (a new Zoom link, keeping the name and posters), its label,
+  // which club looks after it, and whether it's on the club page.
   router.patch(
     "/:shortId",
     asyncHandler(async (req, res) => {
-      const originalUrl = parseHttpUrl(req.body?.originalUrl);
-      if (!originalUrl) {
-        res.status(400).json({ message: "Please enter a valid http:// or https:// URL." });
+      const changes = parseLinkChanges(req.body ?? {});
+      if ("error" in changes) {
+        res.status(400).json({ message: changes.error });
         return;
       }
-      const url = await updateDestination(pool, {
+      const result = await updateLink(pool, {
         shortId: normalizeShortName(req.params.shortId),
         userId: userId(req),
-        originalUrl,
+        changes,
       });
-      if (!url) {
-        res.status(404).json({ message: "Not found" });
+      if (!result.ok) {
+        if (result.reason === "not-a-member") res.status(403).json(NOT_A_MEMBER);
+        else res.status(404).json({ message: "Not found" });
         return;
       }
-      res.json(url);
+      res.json(result.url);
     }),
   );
 
