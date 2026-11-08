@@ -10,6 +10,7 @@ import { findDestination, recordClick } from "./db/urls";
 import { escapeHtml, simplePage } from "./html";
 import { createPassport } from "./passport";
 import { authRouter } from "./routes/auth";
+import { clubsRouter, invitesRouter } from "./routes/clubs";
 import { contactRouter } from "./routes/contact";
 import { testLoginRouter } from "./routes/testLogin";
 import { urlRouter } from "./routes/url";
@@ -94,6 +95,8 @@ export function createApp(options: AppOptions) {
 
   app.use("/api/auth", authRouter(passport));
   app.use("/api/urls", urlRouter(pool));
+  app.use("/api/clubs", clubsRouter(pool));
+  app.use("/api/invites", invitesRouter(pool));
   app.use("/api/contact", contactRouter(pool));
   if (options.enableTestLogin) app.use("/api/test", testLoginRouter(pool));
   app.use("/api", (_req, res) => {
@@ -159,8 +162,10 @@ export function createApp(options: AppOptions) {
   });
 
   // Express treats a middleware as an error handler only when it takes four arguments.
-  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
     console.error(err);
+    // Too late for an error page once the response has started; let Express close it.
+    if (res.headersSent) return next(err);
     res.status(500).json({ message: "Server error" });
   });
 

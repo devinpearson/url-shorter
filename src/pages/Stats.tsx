@@ -8,13 +8,16 @@ import { Card } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import {
   apiErrorMessage,
+  type ClubSummary,
   deleteLink,
+  fetchClubs,
   fetchLink,
   type LinkStats,
   type ShortUrlWithStats,
   shortLink,
   shortLinkLabel,
   updateDestination,
+  updateLink,
 } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
@@ -68,6 +71,141 @@ function ClickChart({ daily }: { daily: LinkStats["daily"] }) {
   );
 }
 
+/** The link's label, the club that looks after it, and whether it's on the club page. */
+function DetailsCard({
+  url,
+  clubs,
+  onSaved,
+}: {
+  url: ShortUrlWithStats;
+  clubs: ClubSummary[];
+  onSaved: (url: ShortUrlWithStats) => void;
+}) {
+  const [title, setTitle] = useState(url.title ?? "");
+  const [clubId, setClubId] = useState(url.clubId ?? "");
+  const [onClubPage, setOnClubPage] = useState(Boolean(url.onClubPage));
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const changed =
+    title.trim() !== (url.title ?? "") ||
+    clubId !== (url.clubId ?? "") ||
+    (Boolean(clubId) && onClubPage !== Boolean(url.onClubPage));
+
+  const handleSave = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!changed || saving) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const saved = await updateLink(url.shortId, {
+        title: title.trim() || null,
+        clubId: clubId || null,
+        onClubPage: Boolean(clubId) && onClubPage,
+      });
+      onSaved({ ...url, ...saved });
+      setTitle(saved.title ?? "");
+      setClubId(saved.clubId ?? "");
+      setOnClubPage(Boolean(saved.onClubPage));
+      setMessage({ ok: true, text: "Saved." });
+    } catch (err) {
+      setMessage({ ok: false, text: apiErrorMessage(err) });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const club = clubs.find((c) => c.id === clubId);
+
+  return (
+    <Card className="p-6">
+      <h2 className="font-semibold text-gray-900">Label and club</h2>
+      <form onSubmit={handleSave} className="mt-3 space-y-4">
+        <div>
+          <label htmlFor="title" className="text-sm font-medium text-gray-700">
+            Label (optional)
+          </label>
+          <Input
+            id="title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Weekly meeting (Zoom)"
+            maxLength={100}
+            className="mt-1 h-10 text-base"
+          />
+        </div>
+        <div>
+          <label htmlFor="club" className="text-sm font-medium text-gray-700">
+            Who looks after it
+          </label>
+          {clubs.length === 0 && !url.clubId ? (
+            <p className="mt-1 text-sm text-gray-600">
+              Just you.{" "}
+              <Link to="/clubs" className="text-primary hover:underline">
+                Set up your club
+              </Link>{" "}
+              so other officers can look after it too, even after you hand over.
+            </p>
+          ) : (
+            <select
+              id="club"
+              value={clubId}
+              onChange={(e) => setClubId(e.target.value)}
+              className="border-input mt-1 block h-10 w-full rounded-md border bg-white px-3 text-base"
+            >
+              <option value="">Just me</option>
+              {clubs.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} (all its officers)
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+        {clubId && (
+          <label className="flex items-start gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={onClubPage}
+              onChange={(e) => setOnClubPage(e.target.checked)}
+              className="mt-0.5 size-4"
+            />
+            <span>
+              Show on the club page
+              {club && (
+                <>
+                  {" "}
+                  (
+                  <a
+                    href={`/c/${club.slug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    {shortLinkLabel(`c/${club.slug}`)}
+                  </a>
+                  )
+                </>
+              )}
+            </span>
+          </label>
+        )}
+        <Button type="submit" disabled={!changed || saving}>
+          {saving ? "Saving…" : "Save details"}
+        </Button>
+        {message && (
+          <p
+            role={message.ok ? "status" : "alert"}
+            className={message.ok ? "text-sm text-green-700" : "text-destructive text-sm"}
+          >
+            {message.text}
+          </p>
+        )}
+      </form>
+    </Card>
+  );
+}
+
 export default function Stats() {
   const { user } = useAuth();
   const { shortId } = useParams();
@@ -78,6 +216,15 @@ export default function Stats() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [clubs, setClubs] = useState<ClubSummary[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    // Only for choosing a club; the page works without it.
+    fetchClubs()
+      .then(setClubs)
+      .catch(() => setClubs([]));
+  }, [user]);
 
   useEffect(() => {
     if (!user || !shortId) return;
@@ -161,6 +308,7 @@ export default function Stats() {
         <>
           <Card className="p-6 shadow-md">
             <h1 className="sr-only">Manage {shortLinkLabel(url.shortId)}</h1>
+            {url.title && <p className="mb-1 font-medium text-gray-700">{url.title}</p>}
             <a
               href={shortLink(url.shortId)}
               target="_blank"
@@ -189,7 +337,7 @@ export default function Stats() {
 
           <Card className="p-6">
             <h2 className="mb-3 font-semibold text-gray-900">QR code</h2>
-            <QrCode shortId={url.shortId} />
+            <QrCode path={url.shortId} />
           </Card>
 
           <Card className="p-6">
@@ -265,6 +413,8 @@ export default function Stats() {
               </div>
             )}
           </Card>
+
+          <DetailsCard key={url.id} url={url} clubs={clubs} onSaved={setUrl} />
 
           <div className="flex justify-end">
             <Button
