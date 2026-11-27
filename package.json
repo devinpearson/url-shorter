@@ -88,6 +88,9 @@
     "vite": "^6.4.5",
     "vitest": "^5.1.0"
   },
+  "overrides": {
+    "katex": "^0.18.11"
+  },
   "description": "Short links for Toastmasters clubs (toast.li)",
   "keywords": [],
   "author": "",
