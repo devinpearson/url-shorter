@@ -15,6 +15,7 @@ describe("database", () => {
       "001_schema.sql",
       "002_click_tracking.sql",
       "003_sources_and_destination_history.sql",
+      "004_clubs.sql",
     ]);
   });
 

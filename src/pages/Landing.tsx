@@ -276,7 +276,7 @@ export default function Landing() {
                 however they like.
               </p>
               <p className="mt-1 truncate text-sm text-gray-500">→ {created.originalUrl}</p>
-              <QrCode shortId={created.shortId} size={136} className="mt-4" />
+              <QrCode path={created.shortId} size={136} className="mt-4" />
               <div className="mt-4 flex flex-wrap gap-4 text-sm">
                 <Link to={`/stats/${created.shortId}`} className="text-primary hover:underline">
                   Manage this link

@@ -8,6 +8,7 @@ import { Button, buttonVariants } from "./ui/button";
 
 const NAV_LINKS = [
   { to: "/dashboard", label: "Dashboard" },
+  { to: "/clubs", label: "Clubs" },
   { to: "/about", label: "About" },
   { to: "/contact", label: "Contact" },
 ];

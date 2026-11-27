@@ -8,26 +8,43 @@ export interface ShortUrl {
   createdAt: Date;
   /** The latest click, or null if the link has never been opened. */
   lastClickedAt: Date | null;
+  /** A friendly label, e.g. "Weekly meeting (Zoom)". */
+  title: string | null;
+  /** The club that looks after it, or null for a personal link. */
+  clubId: string | null;
+  /** Listed on the club's public page. */
+  onClubPage: boolean;
 }
 
 const COLUMNS = `id, short_id AS "shortId", original_url AS "originalUrl", clicks,
-  created_at AS "createdAt", last_clicked_at AS "lastClickedAt"`;
+  created_at AS "createdAt", last_clicked_at AS "lastClickedAt", title, club_id AS "clubId",
+  on_club_page AS "onClubPage"`;
+
+/**
+ * SQL for "the user (parameter `param`) can manage this link": they made it and it's personal,
+ * or it belongs to one of their clubs.
+ */
+const canManage = (param: string) =>
+  `((club_id IS NULL AND user_id = ${param})
+    OR club_id IN (SELECT club_id FROM club_members WHERE user_id = ${param}))`;
 
 /** Throws a unique violation (see isUniqueViolation) when the short id is taken. */
 export async function createUrl(
   pool: Pool,
-  input: { shortId: string; originalUrl: string; userId: string },
+  input: { shortId: string; originalUrl: string; userId: string; clubId?: string | null },
 ): Promise<ShortUrl> {
   const { rows } = await pool.query<ShortUrl>(
-    `INSERT INTO urls (short_id, original_url, user_id) VALUES ($1, $2, $3) RETURNING ${COLUMNS}`,
-    [input.shortId, input.originalUrl, input.userId],
+    `INSERT INTO urls (short_id, original_url, user_id, club_id) VALUES ($1, $2, $3, $4)
+     RETURNING ${COLUMNS}`,
+    [input.shortId, input.originalUrl, input.userId, input.clubId ?? null],
   );
   return rows[0];
 }
 
+/** The user's personal links and their clubs' links, newest first. */
 export async function listUrls(pool: Pool, userId: string): Promise<ShortUrl[]> {
   const { rows } = await pool.query<ShortUrl>(
-    `SELECT ${COLUMNS} FROM urls WHERE user_id = $1 ORDER BY created_at DESC, id`,
+    `SELECT ${COLUMNS} FROM urls WHERE ${canManage("$1")} ORDER BY created_at DESC, id`,
     [userId],
   );
   return rows;
@@ -35,18 +52,18 @@ export async function listUrls(pool: Pool, userId: string): Promise<ShortUrl[]> 
 
 export async function findUrl(pool: Pool, shortId: string, userId: string) {
   const { rows } = await pool.query<ShortUrl>(
-    `SELECT ${COLUMNS} FROM urls WHERE short_id = $1 AND user_id = $2`,
+    `SELECT ${COLUMNS} FROM urls WHERE short_id = $1 AND ${canManage("$2")}`,
     [shortId, userId],
   );
   return rows[0] ?? null;
 }
 
-/** Returns false when the link doesn't exist or belongs to someone else. */
+/** Returns false when the link doesn't exist or the user can't manage it. */
 export async function deleteUrl(pool: Pool, shortId: string, userId: string) {
-  const { rowCount } = await pool.query("DELETE FROM urls WHERE short_id = $1 AND user_id = $2", [
-    shortId,
-    userId,
-  ]);
+  const { rowCount } = await pool.query(
+    `DELETE FROM urls WHERE short_id = $1 AND ${canManage("$2")}`,
+    [shortId, userId],
+  );
   return (rowCount ?? 0) > 0;
 }
 
@@ -84,27 +101,96 @@ export async function findDestination(pool: Pool, shortId: string): Promise<stri
   return rows[0]?.originalUrl ?? null;
 }
 
+export interface LinkChanges {
+  /** A new destination; the old one is kept in the history. */
+  originalUrl?: string;
+  /** A friendly label; empty or null clears it. */
+  title?: string | null;
+  /** Hand the link to a club (its id), or null to make it the user's own. */
+  clubId?: string | null;
+  onClubPage?: boolean;
+}
+
+export type UpdateResult =
+  | { ok: true; url: ShortUrl }
+  | { ok: false; reason: "not-found" | "not-a-member" };
+
 /**
- * Points one of the user's links somewhere new, keeping the old address in the history.
- * Returns null when the link doesn't exist or belongs to someone else.
+ * Changes a link the user can manage, keeping the old destination in the history. Moving a
+ * link to a club needs membership of that club; making it personal makes the user its owner.
  */
-export async function updateDestination(
+export async function updateLink(
   pool: Pool,
-  input: { shortId: string; userId: string; originalUrl: string },
-): Promise<ShortUrl | null> {
-  const { rows } = await pool.query<ShortUrl>(
-    `WITH old AS (
-       SELECT id, original_url FROM urls WHERE short_id = $1 AND user_id = $2 FOR UPDATE
-     ), history AS (
-       INSERT INTO url_destination_history (url_id, original_url)
-       SELECT id, original_url FROM old WHERE original_url <> $3
-     ), updated AS (
-       UPDATE urls SET original_url = $3 FROM old WHERE urls.id = old.id RETURNING urls.*
-     )
-     SELECT ${COLUMNS} FROM updated`,
-    [input.shortId, input.userId, input.originalUrl],
-  );
-  return rows[0] ?? null;
+  input: { shortId: string; userId: string; changes: LinkChanges },
+): Promise<UpdateResult> {
+  const { shortId, userId, changes } = input;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { rows: found } = await client.query<{
+      id: string;
+      originalUrl: string;
+      clubId: string | null;
+    }>(
+      `SELECT id, original_url AS "originalUrl", club_id AS "clubId" FROM urls
+       WHERE short_id = $1 AND ${canManage("$2")} FOR UPDATE`,
+      [shortId, userId],
+    );
+    const old = found[0];
+    if (!old) {
+      await client.query("ROLLBACK");
+      return { ok: false, reason: "not-found" };
+    }
+
+    if (changes.clubId) {
+      const member = await client.query(
+        "SELECT 1 FROM club_members WHERE club_id = $1 AND user_id = $2",
+        [changes.clubId, userId],
+      );
+      if (member.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return { ok: false, reason: "not-a-member" };
+      }
+    }
+
+    const sets: string[] = [];
+    const values: unknown[] = [old.id];
+    const set = (column: string, value: unknown) => {
+      values.push(value);
+      sets.push(`${column} = $${values.length}`);
+    };
+
+    if (changes.originalUrl !== undefined && changes.originalUrl !== old.originalUrl) {
+      await client.query(
+        "INSERT INTO url_destination_history (url_id, original_url) VALUES ($1, $2)",
+        [old.id, old.originalUrl],
+      );
+      set("original_url", changes.originalUrl);
+    }
+    if (changes.title !== undefined) set("title", changes.title?.trim() || null);
+    if (changes.clubId !== undefined) {
+      set("club_id", changes.clubId);
+      if (changes.clubId === null) set("user_id", userId);
+    }
+    // Only club links can be on a club page.
+    const clubAfter = changes.clubId !== undefined ? changes.clubId : old.clubId;
+    if (clubAfter === null) set("on_club_page", false);
+    else if (changes.onClubPage !== undefined) set("on_club_page", changes.onClubPage);
+
+    const { rows } = await client.query<ShortUrl>(
+      sets.length
+        ? `UPDATE urls SET ${sets.join(", ")} WHERE id = $1 RETURNING ${COLUMNS}`
+        : `SELECT ${COLUMNS} FROM urls WHERE id = $1`,
+      values,
+    );
+    await client.query("COMMIT");
+    return { ok: true, url: rows[0] };
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 export interface UrlStats {

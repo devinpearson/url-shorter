@@ -5,8 +5,12 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import App from "./App";
 import { AuthProvider } from "./lib/auth";
 import About from "./pages/About";
+import Club from "./pages/Club";
+import ClubPage from "./pages/ClubPage";
+import Clubs from "./pages/Clubs";
 import Contact from "./pages/Contact";
 import Dashboard from "./pages/Dashboard";
+import Join from "./pages/Join";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Stats from "./pages/Stats";
@@ -25,6 +29,10 @@ ReactDOM.createRoot(root).render(
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="login" element={<Login />} />
             <Route path="stats/:shortId" element={<Stats />} />
+            <Route path="clubs" element={<Clubs />} />
+            <Route path="clubs/:slug" element={<Club />} />
+            <Route path="join/:token" element={<Join />} />
+            <Route path="c/:slug" element={<ClubPage />} />
             <Route path="about" element={<About />} />
             <Route path="contact" element={<Contact />} />
             <Route path="terms" element={<Terms />} />

@@ -5,9 +5,12 @@ import { shortLinkLabel } from "../lib/api";
 import { cn } from "../lib/utils";
 import { buttonVariants } from "./ui/button";
 
-/** What the QR code opens: the short link, tagged so scans show separately in the stats. */
-function qrTarget(shortId: string) {
-  return `${window.location.origin}/${shortId}?src=qr`;
+/**
+ * What the QR code opens. Short links are tagged ?src=qr, so scans show separately in the
+ * link's stats.
+ */
+function qrTarget(path: string, trackScans: boolean) {
+  return `${window.location.origin}/${path}${trackScans ? "?src=qr" : ""}`;
 }
 
 const DARK = "#111827";
@@ -16,7 +19,7 @@ const DARK = "#111827";
  * A poster-ready PNG: the QR code with the short link printed underneath, so people who can't
  * scan can still type it.
  */
-async function posterPng(shortId: string): Promise<string> {
+async function posterPng(path: string, trackScans: boolean): Promise<string> {
   const size = 1000;
   const margin = 80;
   const labelHeight = 150;
@@ -29,7 +32,7 @@ async function posterPng(shortId: string): Promise<string> {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   const qr = document.createElement("canvas");
-  await QRCode.toCanvas(qr, qrTarget(shortId), {
+  await QRCode.toCanvas(qr, qrTarget(path, trackScans), {
     width: size,
     margin: 0,
     errorCorrectionLevel: "M",
@@ -38,7 +41,7 @@ async function posterPng(shortId: string): Promise<string> {
   ctx.drawImage(qr, margin, margin);
 
   // Shrink the label until it fits the width.
-  const label = shortLinkLabel(shortId);
+  const label = shortLinkLabel(path);
   let fontSize = 84;
   do {
     ctx.font = `700 ${fontSize}px system-ui, -apple-system, "Segoe UI", sans-serif`;
@@ -61,13 +64,19 @@ function download(href: string, filename: string) {
   a.remove();
 }
 
-/** A QR code for a short link, with downloads for printing (PNG) and design tools (SVG). */
+/**
+ * A QR code for a page on this site (a short link like "sunrise-zoom", or a club page like
+ * "c/sunrise-speakers"), with downloads for printing (PNG) and design tools (SVG).
+ */
 export function QrCode({
-  shortId,
+  path,
+  trackScans = true,
   size = 176,
   className,
 }: {
-  shortId: string;
+  path: string;
+  /** Tag scans with ?src=qr (short links only: their stats count scans). */
+  trackScans?: boolean;
   size?: number;
   className?: string;
 }) {
@@ -76,7 +85,7 @@ export function QrCode({
 
   useEffect(() => {
     let cancelled = false;
-    QRCode.toString(qrTarget(shortId), {
+    QRCode.toString(qrTarget(path, trackScans), {
       type: "svg",
       margin: 1,
       errorCorrectionLevel: "M",
@@ -87,14 +96,15 @@ export function QrCode({
     return () => {
       cancelled = true;
     };
-  }, [shortId]);
+  }, [path, trackScans]);
 
-  const label = shortLinkLabel(shortId);
+  const label = shortLinkLabel(path);
+  const filename = path.replace(/\//g, "-");
   const src = svg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` : undefined;
 
   const downloadPng = async () => {
     try {
-      download(await posterPng(shortId), `${shortId}-qr.png`);
+      download(await posterPng(path, trackScans), `${filename}-qr.png`);
     } catch {
       setError("Couldn't make the PNG. Try the SVG instead.");
     }
@@ -125,7 +135,7 @@ export function QrCode({
           </button>
           <button
             type="button"
-            onClick={() => svg && download(src ?? "", `${shortId}-qr.svg`)}
+            onClick={() => svg && download(src ?? "", `${filename}-qr.svg`)}
             disabled={!svg}
             className={buttonVariants({ variant: "ghost", size: "sm", className: "gap-2" })}
           >

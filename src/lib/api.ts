@@ -10,11 +10,18 @@ export interface ShortUrl {
   clicks: number;
   createdAt?: string;
   lastClickedAt?: string | null;
+  /** A friendly label, e.g. "Weekly meeting (Zoom)". */
+  title?: string | null;
+  /** The club that looks after it, or null for a personal link. */
+  clubId?: string | null;
+  onClubPage?: boolean;
 }
 
 export interface NewShortUrl {
   originalUrl: string;
   customShortId?: string;
+  /** Make it for one of the user's clubs. */
+  clubId?: string | null;
 }
 
 export interface CurrentUser {
@@ -37,6 +44,7 @@ export async function createShortUrl(input: NewShortUrl): Promise<ShortUrl> {
   const payload: NewShortUrl = { originalUrl: input.originalUrl.trim() };
   const custom = input.customShortId?.trim();
   if (custom) payload.customShortId = custom;
+  if (input.clubId) payload.clubId = input.clubId;
   const res = await axios.post<ShortUrl>("/api/urls", payload);
   return res.data;
 }
@@ -54,6 +62,18 @@ export async function fetchLink(shortId: string): Promise<ShortUrlWithStats> {
   return res.data;
 }
 
+export interface LinkChanges {
+  title?: string | null;
+  clubId?: string | null;
+  onClubPage?: boolean;
+}
+
+/** Changes a link's label, the club that looks after it, or whether it's on the club page. */
+export async function updateLink(shortId: string, changes: LinkChanges): Promise<ShortUrl> {
+  const res = await axios.patch<ShortUrl>(`/api/urls/${encodeURIComponent(shortId)}`, changes);
+  return res.data;
+}
+
 /** Points a link somewhere new; its name, posters and QR codes keep working. */
 export async function updateDestination(shortId: string, originalUrl: string): Promise<ShortUrl> {
   const res = await axios.patch<ShortUrl>(`/api/urls/${encodeURIComponent(shortId)}`, {
@@ -61,6 +81,94 @@ export async function updateDestination(shortId: string, originalUrl: string): P
   });
   return res.data;
 }
+
+/* ---------- Clubs ---------- */
+
+export interface Club {
+  id: string;
+  slug: string;
+  name: string;
+}
+
+export interface ClubSummary extends Club {
+  memberCount: number;
+  linkCount: number;
+}
+
+export interface ClubDetail extends Club {
+  members: { id: string; displayName: string; joinedAt: string }[];
+  invites: { id: string; createdAt: string; expiresAt: string; createdBy: string | null }[];
+}
+
+export interface ClubPageData {
+  name: string;
+  slug: string;
+  links: { shortId: string; title: string | null }[];
+}
+
+export interface InviteInfo {
+  clubName: string;
+  clubSlug: string;
+  invitedBy: string | null;
+  status: "ok" | "used" | "expired";
+}
+
+const club = (slug: string) => `/api/clubs/${encodeURIComponent(slug)}`;
+
+export async function fetchClubs(): Promise<ClubSummary[]> {
+  const res = await axios.get<ClubSummary[]>("/api/clubs");
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function createClub(input: { name: string; slug?: string }): Promise<Club> {
+  const res = await axios.post<Club>("/api/clubs", input);
+  return res.data;
+}
+
+export async function fetchClub(slug: string): Promise<ClubDetail> {
+  const res = await axios.get<ClubDetail>(club(slug));
+  return res.data;
+}
+
+export async function renameClub(slug: string, name: string): Promise<Club> {
+  const res = await axios.patch<Club>(club(slug), { name });
+  return res.data;
+}
+
+/** A single-use invite link token for another officer. It can only be shown once. */
+export async function createInvite(
+  slug: string,
+): Promise<{ id: string; token: string; expiresAt: string }> {
+  const res = await axios.post(`${club(slug)}/invites`);
+  return res.data;
+}
+
+export async function cancelInvite(slug: string, inviteId: string): Promise<void> {
+  await axios.delete(`${club(slug)}/invites/${encodeURIComponent(inviteId)}`);
+}
+
+/** Takes an officer off the club; pass your own id to leave. */
+export async function removeMember(slug: string, userId: string): Promise<void> {
+  await axios.delete(`${club(slug)}/members/${encodeURIComponent(userId)}`);
+}
+
+export async function fetchClubPage(slug: string): Promise<ClubPageData> {
+  const res = await axios.get<ClubPageData>(`${club(slug)}/page`);
+  return res.data;
+}
+
+export async function fetchInvite(token: string): Promise<InviteInfo> {
+  const res = await axios.get<InviteInfo>(`/api/invites/${encodeURIComponent(token)}`);
+  return res.data;
+}
+
+export async function acceptInvite(token: string): Promise<Club> {
+  const res = await axios.post<Club>(`/api/invites/${encodeURIComponent(token)}/accept`);
+  return res.data;
+}
+
+export const inviteLink = (token: string) => `${window.location.origin}/join/${token}`;
+export const clubPagePath = (slug: string) => `c/${slug}`;
 
 export async function deleteLink(shortId: string): Promise<void> {
   await axios.delete(`/api/urls/${encodeURIComponent(shortId)}`);
@@ -84,7 +192,7 @@ export function apiErrorMessage(err: unknown): string {
       return serverMessage ?? "That name is already taken. Please choose another.";
     if (status === 401) return "Please log in to continue.";
     if (status === 429) return serverMessage ?? "Too many links at once. Please wait a minute.";
-    if (status === 400 && serverMessage) return serverMessage;
+    if ((status === 400 || status === 403 || status === 410) && serverMessage) return serverMessage;
   }
   return "Something went wrong. Please try again.";
 }

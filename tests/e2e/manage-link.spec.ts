@@ -37,7 +37,7 @@ test("an officer prints a QR code, then points the link at a new Zoom meeting", 
 
   // New meeting: change where it goes. The printed link and QR code keep working.
   await page.getByLabel("New destination").fill(nextMeeting);
-  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("now go here");
   await expect(page.getByText(firstMeeting)).toBeVisible(); // in "Earlier addresses"
 

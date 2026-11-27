@@ -1,14 +1,16 @@
 import axios from "axios";
 import { QrCode as QrCodeIcon, Search, Trash2 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { Button, buttonVariants } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import {
   apiErrorMessage,
+  type ClubSummary,
   createShortUrl,
   deleteLink,
+  fetchClubs,
   type ShortUrl,
   shortLink,
   shortLinkLabel,
@@ -23,6 +25,10 @@ export default function Dashboard() {
   const [customShortId, setCustomShortId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [clubs, setClubs] = useState<ClubSummary[]>([]);
+  // /dashboard?club=<slug> starts with that club chosen (from the club's page).
+  const [params] = useSearchParams();
+  const [clubChoice, setClubChoice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -30,13 +36,23 @@ export default function Dashboard() {
       .get<ShortUrl[]>("/api/urls")
       .then((res) => setUrls(Array.isArray(res.data) ? res.data : []))
       .catch((err) => setError(apiErrorMessage(err)));
+    fetchClubs()
+      .then(setClubs)
+      .catch(() => setClubs([]));
   }, [user]);
 
   if (user === null) return <Navigate to="/login?next=/dashboard" replace />;
 
+  const clubFor = (url: ShortUrl) => clubs.find((c) => c.id === url.clubId);
+  const clubId = clubChoice ?? clubs.find((c) => c.slug === params.get("club"))?.id ?? "";
+
   const query = search.trim().toLowerCase();
   const visible = query
-    ? urls.filter((u) => u.shortId.includes(query) || u.originalUrl.toLowerCase().includes(query))
+    ? urls.filter((u) =>
+        [u.shortId, u.originalUrl, u.title ?? "", clubFor(u)?.name ?? ""].some((field) =>
+          field.toLowerCase().includes(query),
+        ),
+      )
     : urls;
 
   const handleCreate = async (e: FormEvent) => {
@@ -49,7 +65,7 @@ export default function Dashboard() {
       return;
     }
     try {
-      const created = await createShortUrl({ originalUrl, customShortId: name });
+      const created = await createShortUrl({ originalUrl, customShortId: name, clubId });
       setUrls((prev) => [created, ...prev]);
       setOriginalUrl("");
       setCustomShortId("");
@@ -106,6 +122,26 @@ export default function Dashboard() {
         />
         <Button type="submit">Shorten</Button>
       </form>
+      {clubs.length > 0 && (
+        <div className="-mt-4 mb-6 flex items-center gap-2 text-sm">
+          <label htmlFor="new-link-club" className="text-gray-700">
+            For
+          </label>
+          <select
+            id="new-link-club"
+            value={clubId}
+            onChange={(e) => setClubChoice(e.target.value)}
+            className="border-input h-9 rounded-md border bg-white px-2"
+          >
+            <option value="">Just me</option>
+            {clubs.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       {user && urls.length === 0 && !error && (
         <p className="text-muted-foreground">No links yet. Paste one above to get started.</p>
       )}
@@ -140,7 +176,13 @@ export default function Dashboard() {
               >
                 {shortLinkLabel(url.shortId)}
               </a>
+              {url.title && (
+                <div className="truncate text-sm font-medium text-gray-700">{url.title}</div>
+              )}
               <div className="text-muted-foreground truncate text-sm">{url.originalUrl}</div>
+              {clubFor(url) && (
+                <div className="mt-1 text-xs text-gray-600">{clubFor(url)?.name}</div>
+              )}
             </div>
             <div className="flex shrink-0 items-center gap-2 text-right">
               <Link
